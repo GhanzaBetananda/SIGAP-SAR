@@ -77,8 +77,8 @@ export default function LocationPicker({ errors = {} }) {
         type="button"
         onClick={captureLocation}
         disabled={isLoading}
-        className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-4 text-base font-bold text-white transition-colors
-          ${isLoading ? "cursor-wait bg-slate-400" : "bg-slate-900 hover:bg-slate-800"}`}
+        className={`flex h-14 w-full items-center justify-center gap-2 rounded-xl text-base font-bold text-white transition-all
+          ${isLoading ? "cursor-wait bg-slate-400" : "bg-slate-900 hover:bg-slate-800 active:scale-[0.98] active:bg-slate-800"}`}
       >
         {isLoading ? (
           <Loader2 className="h-5 w-5 animate-spin" />
@@ -125,7 +125,7 @@ export default function LocationPicker({ errors = {} }) {
           href={`https://www.google.com/maps?q=${report.latitude},${report.longitude}`}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-700"
+          className="mt-3 flex h-12 items-center justify-center gap-2 rounded-xl border-2 border-slate-200 px-4 text-sm font-semibold text-slate-700 active:scale-[0.98] hover:border-orange-400 hover:text-orange-700"
         >
           <MapPin className="h-4 w-4" />
           Cek posisi di Google Maps

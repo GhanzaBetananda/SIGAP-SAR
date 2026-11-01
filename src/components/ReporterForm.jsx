@@ -3,7 +3,7 @@ import { BASARNAS_EMPLOYEES } from "../data/employees.js";
 import { DISTRICTS } from "../data/districts.js";
 import { POTENTIAL_SAR } from "../data/potentialSar.js";
 import SearchSelect from "./SearchSelect.jsx";
-import { Building2, HeartHandshake } from "lucide-react";
+import { Building2, ChevronDown, HeartHandshake } from "lucide-react";
 
 const CATEGORY_OPTIONS = [
   {
@@ -57,8 +57,8 @@ export default function ReporterForm({ errors = {} }) {
               key={option.value}
               type="button"
               onClick={() => handleCategoryChange(option.value)}
-              className={`flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-colors
-                ${active ? "border-orange-500 bg-orange-50" : "border-slate-200 bg-white hover:border-slate-400"}`}
+              className={`flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all active:scale-[0.98]
+                ${active ? "border-orange-500 bg-orange-50" : "border-slate-200 bg-white hover:border-slate-400 active:border-slate-400"}`}
             >
               <span
                 className={`mt-0.5 rounded-lg p-2 ${active ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-500"}`}
@@ -83,20 +83,23 @@ export default function ReporterForm({ errors = {} }) {
           <label htmlFor="employee-name" className="mb-1.5 block text-sm font-semibold text-slate-700">
             Nama Pegawai BASARNAS
           </label>
-          <select
-            id="employee-name"
-            value={report.employeeName}
-            onChange={(e) => updateReport({ employeeName: e.target.value })}
-            className={`w-full rounded-xl border-2 bg-white px-4 py-3 text-base outline-none focus:border-slate-800
-              ${errors.employeeName ? "border-red-400" : report.employeeName ? "border-slate-800" : "border-slate-300"}`}
-          >
-            <option value="">— Pilih nama Anda —</option>
-            {BASARNAS_EMPLOYEES.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              id="employee-name"
+              value={report.employeeName}
+              onChange={(e) => updateReport({ employeeName: e.target.value })}
+              className={`h-14 w-full appearance-none rounded-xl border-2 bg-white pl-4 pr-11 text-base outline-none focus:border-slate-800
+                ${errors.employeeName ? "border-red-400" : report.employeeName ? "border-slate-800" : "border-slate-300"}`}
+            >
+              <option value="">— Pilih nama Anda —</option>
+              {BASARNAS_EMPLOYEES.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+          </div>
           {errors.employeeName && (
             <p className="mt-2 text-sm font-medium text-red-600">{errors.employeeName}</p>
           )}
@@ -109,22 +112,25 @@ export default function ReporterForm({ errors = {} }) {
             <label htmlFor="district" className="mb-1.5 block text-sm font-semibold text-slate-700">
               Kecamatan
             </label>
-            <select
-              id="district"
-              value={report.district}
-              onChange={(e) =>
-                updateReport({ district: e.target.value, potentialSarName: "" })
-              }
-              className={`w-full rounded-xl border-2 bg-white px-4 py-3 text-base outline-none focus:border-slate-800
-                ${errors.district ? "border-red-400" : report.district ? "border-slate-800" : "border-slate-300"}`}
-            >
-              <option value="">— Pilih kecamatan —</option>
-              {DISTRICTS.map((district) => (
-                <option key={district} value={district}>
-                  {district}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                id="district"
+                value={report.district}
+                onChange={(e) =>
+                  updateReport({ district: e.target.value, potentialSarName: "" })
+                }
+                className={`h-14 w-full appearance-none rounded-xl border-2 bg-white pl-4 pr-11 text-base outline-none focus:border-slate-800
+                  ${errors.district ? "border-red-400" : report.district ? "border-slate-800" : "border-slate-300"}`}
+              >
+                <option value="">— Pilih kecamatan —</option>
+                {DISTRICTS.map((district) => (
+                  <option key={district} value={district}>
+                    {district}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+            </div>
             {errors.district && (
               <p className="mt-2 text-sm font-medium text-red-600">{errors.district}</p>
             )}

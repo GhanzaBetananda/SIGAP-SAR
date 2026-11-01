@@ -15,8 +15,8 @@ export default function PanicButton({
 }) {
   const dimensions =
     size === "lg"
-      ? "h-48 w-48 text-xl sm:h-56 sm:w-56 sm:text-2xl"
-      : "h-40 w-40 text-lg sm:h-48 sm:w-48";
+      ? "h-52 w-52 text-xl sm:h-60 sm:w-60 sm:text-2xl"
+      : "h-44 w-44 text-lg sm:h-52 sm:w-52 sm:text-xl";
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -25,8 +25,8 @@ export default function PanicButton({
         onClick={onClick}
         disabled={disabled}
         aria-label={label}
-        className={`group relative flex ${dimensions} flex-col items-center justify-center rounded-full border-4 border-orange-300/60 bg-gradient-to-b from-orange-500 to-orange-600 text-center font-extrabold uppercase tracking-widest text-white shadow-[0_10px_40px_-5px_rgba(249,115,22,0.55)] transition-transform
-          ${disabled ? "cursor-not-allowed grayscale" : "hover:scale-[1.04] active:scale-95 touch-manipulation"}`}
+        className={`group relative flex ${dimensions} select-none flex-col items-center justify-center rounded-full border-4 border-orange-300/60 bg-gradient-to-b from-orange-500 to-orange-600 text-center font-extrabold uppercase tracking-widest text-white shadow-[0_10px_40px_-5px_rgba(249,115,22,0.55)] transition-transform
+          ${disabled ? "cursor-not-allowed grayscale" : "active:scale-90"}`}
       >
         {!disabled && (
           <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-orange-500/40" />

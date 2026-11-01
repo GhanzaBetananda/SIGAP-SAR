@@ -64,7 +64,7 @@ export default function IncidentForm({ errors = {} }) {
                   role="radio"
                   aria-checked={active}
                   onClick={() => handleClassification(sub.value)}
-                  className={`flex items-center gap-3 rounded-lg border-2 p-3 text-left font-semibold transition-colors
+                  className={`flex items-center gap-3 rounded-lg border-2 p-3 text-left font-semibold transition-all active:scale-[0.97]
                     ${active ? "border-orange-500 bg-orange-500 text-white" : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"}`}
                 >
                   <SubIcon className="h-5 w-5 shrink-0" />
@@ -93,7 +93,7 @@ export default function IncidentForm({ errors = {} }) {
           value={report.victimCount}
           onChange={(e) => handleVictimCount(e.target.value)}
           placeholder="Contoh: 3"
-          className={`w-full rounded-xl border-2 bg-white px-4 py-3 text-base outline-none focus:border-slate-800
+          className={`h-14 w-full rounded-xl border-2 bg-white px-4 text-base outline-none focus:border-slate-800
             ${errors.victimCount ? "border-red-400" : "border-slate-300"}`}
         />
         {errors.victimCount && (
@@ -111,7 +111,7 @@ function ClassificationChip({ option, active, onSelect }) {
       role="radio"
       aria-checked={active}
       onClick={() => onSelect(option.value)}
-      className={`rounded-xl border-2 p-4 text-left font-semibold transition-colors
+      className={`rounded-xl border-2 p-4 text-left font-semibold transition-all active:scale-[0.98]
         ${active ? "border-orange-500 bg-orange-50 text-orange-800" : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"}`}
     >
       {option.label}

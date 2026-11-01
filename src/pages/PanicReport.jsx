@@ -127,22 +127,21 @@ export default function PanicReport() {
         <DistanceInfo report={report} distances={distances} />
 
         {/* Panic Button menjadi tombol submit laporan — elemen paling menonjol */}
-        <div className="flex flex-col items-center gap-4 rounded-2xl bg-white p-6 shadow-sm">
-          <div className="w-full rounded-xl border-2 border-orange-500 bg-orange-50 p-4 text-sm font-medium text-orange-800">
-            <p className="flex items-start gap-2">
+        <div className="rounded-2xl bg-slate-900 p-6 shadow-lg sm:p-8">
+          <div className="mx-auto flex max-w-sm flex-col items-center gap-4">
+            <PanicButton
+              label="Kirim Laporan"
+              sublabel="Pastikan seluruh isian telah benar"
+              onClick={handleSubmit}
+              size="md"
+            />
+            <p className="flex items-start gap-2 text-center text-xs leading-relaxed text-slate-400">
               <Lock className="mt-0.5 h-4 w-4 shrink-0" />
-              Data laporan disimpan pada simulasi frontend terlebih dahulu, lalu tautan
+              Setelah ditekan, laporan disimpan pada simulasi frontend lalu tautan
               WhatsApp disiapkan sesuai klasifikasi kejadian
               {fire ? " (BASARNAS + Manggala Agni)" : " (BASARNAS)"}.
             </p>
           </div>
-
-          <PanicButton
-            label="Kirim Laporan"
-            sublabel="Pastikan seluruh isian telah benar"
-            onClick={handleSubmit}
-            size="md"
-          />
         </div>
 
         {/* Distribusi WhatsApp muncul setelah submit */}
@@ -164,7 +163,7 @@ export default function PanicReport() {
                   href={target.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between gap-3 rounded-xl bg-orange-500 px-5 py-4 font-bold text-white transition-colors hover:bg-orange-600"
+                  className="flex min-h-[56px] items-center justify-between gap-3 rounded-xl bg-orange-500 px-5 py-4 font-bold text-white transition-colors hover:bg-orange-600 active:scale-[0.97] active:bg-orange-600"
                 >
                   <span>{target.label}</span>
                   <span className="hidden truncate font-mono text-xs opacity-80 sm:block">
@@ -175,6 +174,9 @@ export default function PanicReport() {
             </div>
           </section>
         )}
+
+        {/* Jarak agar konten akhir tidak menempel footer saat scroll cepat */}
+        <div className="h-2 pb-6" aria-hidden="true" />
       </div>
     </Layout>
   );

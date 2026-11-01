@@ -9,6 +9,9 @@ html {
   scroll-behavior: smooth;
   /* Menyamarkan scrollbar agar tampilan lebih bersih di desktop */
   scrollbar-gutter: stable;
+  /* Matikan pembesaran font otomatis Chrome Android */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -18,6 +21,52 @@ body {
   -webkit-tap-highlight-color: transparent; /* penting untuk penggunaan di HP */
   /* Menonaktifkan blok huruf saat panic button ditahan */
   user-select: none;
+  /* Sentuhan lebih responsif: tanpa delay & tanpa zoom ketuk ganda */
+  touch-action: manipulation;
+  /* Cegah gelombang tarik (pull-to-refresh) memicu salah laporan */
+  overscroll-behavior-y: contain;
+  font-size: 16px;
+}
+
+/* Konsisten kasih area aman (poni/notch) */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+}
+
+/* Kontrol form: 16px agar tidak di-zoom & nyaman disentuh di Android */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  min-height: 48px;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+/* Sembunyikan spinner input angka (kunci angka HP sudah menyediakan) */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Label form lebih mudah disentuh */
+label {
+  cursor: pointer;
 }
 
 /* Konten form tetap bisa diseleksi */

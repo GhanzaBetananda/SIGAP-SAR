@@ -23,16 +23,13 @@ export default function SearchSelect({
     return options.filter((name) => name.toLowerCase().includes(q));
   }, [options, query]);
 
-  const baseClasses =
-    "flex w-full items-center justify-between gap-2 rounded-xl border-2 bg-white px-4 py-3 text-left text-base";
-
   return (
     <div ref={containerRef} className="relative">
       <button
         type="button"
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
-        className={`${baseClasses} ${disabled ? "cursor-not-allowed border-slate-200 text-slate-400" : value ? "border-slate-800" : "border-slate-300 hover:border-slate-500"}`}
+        className={`flex h-14 w-full items-center justify-between gap-2 rounded-xl border-2 bg-white px-4 text-left text-base ${disabled ? "cursor-not-allowed border-slate-200 text-slate-400" : value ? "border-slate-800" : "border-slate-300 hover:border-slate-500"}`}
       >
         <span className="truncate">
           {disabled

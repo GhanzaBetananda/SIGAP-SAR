@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import Layout from "../components/Layout.jsx";
 import Stepper from "../components/Stepper.jsx";
+import StickyActionBar from "../components/StickyActionBar.jsx";
 import ReporterForm from "../components/ReporterForm.jsx";
 import IncidentForm from "../components/IncidentForm.jsx";
 import LocationPicker from "../components/LocationPicker.jsx";
 import { useReport } from "../context/useReport.js";
 import { validateInitialReport } from "../utils/validation.js";
-import { ArrowRight, RotateCcw } from "lucide-react";
+import { ArrowRight, Eraser } from "lucide-react";
 
 export default function InitialReport() {
   const navigate = useNavigate();
@@ -59,30 +60,33 @@ export default function InitialReport() {
     <Layout>
       <Stepper current={1} />
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-4 space-y-4">
         <ReporterForm errors={errors} />
         <IncidentForm errors={errors} />
         <LocationPicker errors={errors} />
-
-        <div className="flex flex-col gap-3 sm:flex-row-reverse">
-          <button
-            type="button"
-            onClick={handleContinue}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-orange-600 px-6 py-4 text-base font-bold text-white transition-colors hover:bg-orange-700"
-          >
-            Lanjut ke Panic Button
-            <ArrowRight className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-6 py-4 text-sm font-semibold text-slate-700 hover:border-slate-500"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Kosongkan
-          </button>
-        </div>
+        {/* Jarak aman agar konten tidak tertutup sticky action bar */}
+        <div className="h-4 pb-24 sm:pb-20" aria-hidden="true" />
       </div>
+
+      {/* Tombol utama di zona jempol (bawah layar) */}
+      <StickyActionBar>
+        <button
+          type="button"
+          onClick={handleReset}
+          aria-label="Kosongkan formulir"
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-slate-300 bg-white text-slate-700 active:scale-95 active:border-slate-500"
+        >
+          <Eraser className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={handleContinue}
+          className="flex h-14 flex-1 items-center justify-center gap-2 rounded-xl bg-orange-600 text-base font-bold text-white shadow-lg shadow-orange-600/30 transition-transform active:scale-[0.98] active:bg-orange-700"
+        >
+          Lanjut ke Panic Button
+          <ArrowRight className="h-5 w-5" />
+        </button>
+      </StickyActionBar>
     </Layout>
   );
 }

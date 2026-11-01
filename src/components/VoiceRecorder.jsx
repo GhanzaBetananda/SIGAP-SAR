@@ -126,7 +126,7 @@ export default function VoiceRecorder({ errors = {} }) {
           <button
             type="button"
             onClick={startRecording}
-            className="flex min-w-36 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3.5 text-base font-bold text-white hover:bg-red-700"
+            className="flex h-14 min-w-36 items-center justify-center gap-2 rounded-xl bg-red-600 text-base font-bold text-white hover:bg-red-700 active:scale-[0.97] active:bg-red-700"
           >
             <Mic className="h-5 w-5" />
             Mulai Rekam
@@ -136,7 +136,7 @@ export default function VoiceRecorder({ errors = {} }) {
             <button
               type="button"
               onClick={stopRecording}
-              className="flex min-w-36 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3.5 text-base font-bold text-white hover:bg-red-700"
+              className="flex h-14 min-w-36 items-center justify-center gap-2 rounded-xl bg-red-600 text-base font-bold text-white hover:bg-red-700 active:scale-[0.97] active:bg-red-700"
             >
               <Square className="h-5 w-5" />
               Berhenti
@@ -162,21 +162,21 @@ export default function VoiceRecorder({ errors = {} }) {
               href={report.voiceNoteUrl}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+              className="flex h-12 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800 active:scale-95 active:bg-slate-800"
             >
               <Play className="h-4 w-4" /> Putar di Tab Baru
             </a>
             <button
               type="button"
               onClick={startRecording}
-              className="flex items-center gap-2 rounded-lg border-2 border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-700"
+              className="flex h-12 items-center gap-2 rounded-lg border-2 border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-700 active:scale-95"
             >
               <RotateCcw className="h-4 w-4" /> Rekam Ulang
             </button>
             <button
               type="button"
               onClick={deleteRecording}
-              className="flex items-center gap-2 rounded-lg border-2 border-slate-300 px-4 py-2.5 text-sm font-semibold text-red-600 hover:border-red-400"
+              className="flex h-12 items-center gap-2 rounded-lg border-2 border-slate-300 px-4 text-sm font-semibold text-red-600 hover:border-red-400 active:scale-95"
             >
               <Trash2 className="h-4 w-4" /> Hapus Rekaman
             </button>
