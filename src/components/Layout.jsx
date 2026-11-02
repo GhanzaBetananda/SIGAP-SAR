@@ -36,7 +36,7 @@ export default function Layout({ children }) {
               PANIC BUTTON SAR
             </p>
             <p className="truncate text-[11px] text-slate-400">
-              Pelaporan Awal Kejadian — BASARNAS × Manggala Agni
+              Sistem Pelaporan Awal Kejadian BASARNAS
             </p>
           </div>
 
@@ -59,8 +59,7 @@ export default function Layout({ children }) {
       <footer className="border-t border-slate-200 bg-white">
         <div className="safe-area-bottom mx-auto max-w-3xl px-4 py-4 text-center text-xs text-slate-500">
           <p>
-            Prototype frontend — data sementara disimpan dengan React State (simulasi
-            frontend).
+            copyright Basarnas 2026. All rights reserved. <br />
           </p>
         </div>
       </footer>
