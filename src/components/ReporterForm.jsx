@@ -88,8 +88,8 @@ export default function ReporterForm({ errors = {} }) {
               id="employee-name"
               value={report.employeeName}
               onChange={(e) => updateReport({ employeeName: e.target.value })}
-              className={`h-14 w-full appearance-none rounded-xl border-2 bg-white pl-4 pr-11 text-base outline-none focus:border-slate-800
-                ${errors.employeeName ? "border-red-400" : report.employeeName ? "border-slate-800" : "border-slate-300"}`}
+              className={`h-14 w-full appearance-none rounded-xl border-2 bg-white pl-4 pr-11 text-base outline-none focus:border-basarnasblue
+                ${errors.employeeName ? "border-red-400" : report.employeeName ? "border-basarnasblue" : "border-slate-300"}`}
             >
               <option value="">— Pilih nama Anda —</option>
               {BASARNAS_EMPLOYEES.map((name) => (
@@ -119,8 +119,8 @@ export default function ReporterForm({ errors = {} }) {
                 onChange={(e) =>
                   updateReport({ district: e.target.value, potentialSarName: "" })
                 }
-                className={`h-14 w-full appearance-none rounded-xl border-2 bg-white pl-4 pr-11 text-base outline-none focus:border-slate-800
-                  ${errors.district ? "border-red-400" : report.district ? "border-slate-800" : "border-slate-300"}`}
+                className={`h-14 w-full appearance-none rounded-xl border-2 bg-white pl-4 pr-11 text-base outline-none focus:border-basarnasblue
+                  ${errors.district ? "border-red-400" : report.district ? "border-basarnasblue" : "border-slate-300"}`}
               >
                 <option value="">— Pilih kecamatan —</option>
                 {DISTRICTS.map((district) => (

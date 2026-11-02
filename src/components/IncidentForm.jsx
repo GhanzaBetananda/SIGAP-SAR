@@ -93,7 +93,7 @@ export default function IncidentForm({ errors = {} }) {
           value={report.victimCount}
           onChange={(e) => handleVictimCount(e.target.value)}
           placeholder="Contoh: 3"
-          className={`h-14 w-full rounded-xl border-2 bg-white px-4 text-base outline-none focus:border-slate-800
+          className={`h-14 w-full rounded-xl border-2 bg-white px-4 text-base outline-none focus:border-basarnasblue
             ${errors.victimCount ? "border-red-400" : "border-slate-300"}`}
         />
         {errors.victimCount && (

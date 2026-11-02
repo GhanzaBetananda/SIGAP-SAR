@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
-/* ====== Identitas visual BASARNAS: oranye, putih, gelap ====== */
+/* ====== Identitas visual BASARNAS: putih dominan + aksen oranye & biru ====== */
 @theme {
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  /* Biru khas BASARNAS untuk teks/badge aksen */
+  --color-basarnasblue: #10457e;
+  --color-basarnasblue-dark: #0b335f;
+  /* Oranye aksi khas SAR */
+  --color-sarorange: #ea580c;
 }
 
 html {

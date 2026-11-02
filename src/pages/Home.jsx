@@ -32,6 +32,22 @@ export default function Home() {
           sebelum laporan dapat dikirim.
         </p>
 
+        {/* Baris logo instansi (urutan: 456, 472, BASARNAS) */}
+        <div className="mt-6 flex items-center justify-center gap-4">
+          {[
+            { src: "/456.png", alt: "Logo 456" },
+            { src: "/472.png", alt: "Logo 472" },
+            { src: "/BASARNAS.png", alt: "Logo BASARNAS" },
+          ].map((logo) => (
+            <img
+              key={logo.src}
+              src={logo.src}
+              alt={logo.alt}
+              className="h-14 w-14 rounded-full bg-white object-contain p-1 shadow-md ring-1 ring-slate-200 sm:h-16 sm:w-16"
+            />
+          ))}
+        </div>
+
         <h1 className="mt-5 text-3xl font-extrabold leading-tight text-slate-900 sm:text-4xl">
           Melapor dari TKP
         </h1>
@@ -75,7 +91,7 @@ export default function Home() {
 
 function StepCard({ icon, title, items }) {  return (
     <div className="rounded-2xl bg-white p-5 text-left shadow-sm">
-      <span className="mb-3 inline-flex rounded-lg bg-slate-900 p-2.5 text-white">{icon}</span>
+      <span className="mb-3 inline-flex rounded-lg bg-basarnasblue p-2.5 text-white">{icon}</span>
       <p className="font-bold text-slate-900">{title}</p>
       <ul className="mt-2 space-y-1 text-xs text-slate-500">
         {items.map((item) => (

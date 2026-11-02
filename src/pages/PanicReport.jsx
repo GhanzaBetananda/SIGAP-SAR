@@ -116,7 +116,7 @@ export default function PanicReport() {
             value={report.detail}
             onChange={(e) => updateReport({ detail: e.target.value })}
             placeholder="Tuliskan kronologi kejadian, kondisi korban, dan informasi tambahan..."
-            className={`w-full resize-y rounded-xl border-2 bg-white px-4 py-3 text-base outline-none focus:border-slate-800
+            className={`w-full resize-y rounded-xl border-2 bg-white px-4 py-3 text-base outline-none focus:border-basarnasblue
               ${errors.detail ? "border-red-400" : "border-slate-300"}`}
           />
           {errors.detail && (
@@ -127,7 +127,7 @@ export default function PanicReport() {
         <DistanceInfo report={report} distances={distances} />
 
         {/* Panic Button menjadi tombol submit laporan — elemen paling menonjol */}
-        <div className="rounded-2xl bg-slate-900 p-6 shadow-lg sm:p-8">
+        <div className="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm sm:p-8">
           <div className="mx-auto flex max-w-sm flex-col items-center gap-4">
             <PanicButton
               label="Kirim Laporan"
@@ -135,8 +135,8 @@ export default function PanicReport() {
               onClick={handleSubmit}
               size="md"
             />
-            <p className="flex items-start gap-2 text-center text-xs leading-relaxed text-slate-400">
-              <Lock className="mt-0.5 h-4 w-4 shrink-0" />
+            <p className="flex items-start gap-2 text-center text-xs leading-relaxed text-slate-500">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-basarnasblue" />
               Setelah ditekan, laporan disimpan pada simulasi frontend lalu tautan
               WhatsApp disiapkan sesuai klasifikasi kejadian
               {fire ? " (BASARNAS + Manggala Agni)" : " (BASARNAS)"}.
@@ -146,12 +146,12 @@ export default function PanicReport() {
 
         {/* Distribusi WhatsApp muncul setelah submit */}
         {report.submittedAt && waTargets.length > 0 && (
-          <section className="rounded-2xl bg-slate-900 p-5 text-white shadow-sm sm:p-6">
+          <section className="rounded-2xl border border-basarnasblue/15 bg-basarnasblue p-5 text-white shadow-sm sm:p-6">
             <h2 className="mb-1 flex items-center gap-2 text-lg font-bold">
-              <Send className="h-5 w-5 text-orange-400" />
+              <Send className="h-5 w-5 text-sarorange" />
               Distribusi Laporan WhatsApp
             </h2>
-            <p className="mb-4 text-sm text-slate-400">
+            <p className="mb-4 text-sm text-white/80">
               Buka setiap tautan berikut lalu tekan tombol kirim di aplikasi WhatsApp.
               Sistem tidak menganggap laporan terkirim hanya karena tautan dibuka.
             </p>

@@ -162,7 +162,7 @@ export default function VoiceRecorder({ errors = {} }) {
               href={report.voiceNoteUrl}
               target="_blank"
               rel="noreferrer"
-              className="flex h-12 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800 active:scale-95 active:bg-slate-800"
+              className="flex h-12 items-center gap-2 rounded-lg bg-basarnasblue px-4 text-sm font-semibold text-white hover:bg-basarnasblue-dark active:scale-95 active:bg-basarnasblue-dark"
             >
               <Play className="h-4 w-4" /> Putar di Tab Baru
             </a>

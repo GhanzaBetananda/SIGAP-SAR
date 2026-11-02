@@ -78,7 +78,7 @@ export default function LocationPicker({ errors = {} }) {
         onClick={captureLocation}
         disabled={isLoading}
         className={`flex h-14 w-full items-center justify-center gap-2 rounded-xl text-base font-bold text-white transition-all
-          ${isLoading ? "cursor-wait bg-slate-400" : "bg-slate-900 hover:bg-slate-800 active:scale-[0.98] active:bg-slate-800"}`}
+          ${isLoading ? "cursor-wait bg-slate-400" : "bg-basarnasblue hover:bg-basarnasblue-dark active:scale-[0.98] active:bg-basarnasblue-dark"}`}
       >
         {isLoading ? (
           <Loader2 className="h-5 w-5 animate-spin" />
