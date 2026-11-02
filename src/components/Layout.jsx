@@ -12,7 +12,7 @@ export default function Layout({ children }) {
           <div className="leading-tight">
             <p className="text-base font-extrabold tracking-wide">PANIC BUTTON SAR</p>
             <p className="text-[11px] text-slate-400">
-              Pelaporan Awal Kejadian — BASARNAS × Manggala Agni
+              Pelaporan Awal Kejadian BASARNAS 
             </p>
           </div>
         </div>
@@ -24,7 +24,7 @@ export default function Layout({ children }) {
         <div className="safe-area-bottom mx-auto max-w-3xl px-4 py-4 text-center text-xs text-slate-500">
           <p className="flex items-center justify-center gap-1.5">
             <Ban className="h-3.5 w-3.5" />
-            Prototype frontend — data sementara disimpan dengan React State (simulasi frontend).
+            Copyright 2026 BASARNAS. All rights reserved.
           </p>
         </div>
       </footer>
