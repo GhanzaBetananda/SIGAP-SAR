@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import PanicButton from "../components/PanicButton.jsx";
 import Stepper from "../components/Stepper.jsx";
-import { useReport } from "../context/useReport.js";
 import {
   AlertTriangle,
   ClipboardList,
@@ -13,17 +12,15 @@ import {
 
 export default function Home() {
   const navigate = useNavigate();
-  const { report, initialValidation } = useReport();
-  const initialComplete = initialValidation.valid;
 
   function handlePanicPress() {
-    // Panic button selalu membuka alur pelaporan; form wajib diisi dulu
-    navigate("/lapor-awal");
+    // Pelapor sudah login (identitas dari akun) — langsung ke halaman panic
+    navigate("/panic");
   }
 
   return (
     <Layout>
-      <Stepper current={initialComplete ? 2 : 1} />
+      <Stepper current={1} />
 
       <section className="mt-6 text-center">
         <p className="mx-auto flex max-w-md items-start gap-2 rounded-xl border-2 border-orange-200 bg-orange-50 p-3 text-left text-xs text-orange-800">
@@ -52,8 +49,8 @@ export default function Home() {
           Melapor dari TKP
         </h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-          Isi informasi awal, rekam suara, lalu laporan disiapkan untuk BASARNAS dan
-          Manggala Agni melalui WhatsApp sesuai klasifikasi kejadian.
+          Login sebagai akun Anda, lengkapi detail kejadian, rekam suara, lalu laporan
+          disiapkan untuk BASARNAS dan Manggala Agni melalui WhatsApp sesuai klasifikasi.
         </p>
 
         <div className="my-8 flex justify-center">
@@ -71,13 +68,13 @@ export default function Home() {
       <section className="grid gap-3 sm:grid-cols-3">
         <StepCard
           icon={<ClipboardList className="h-6 w-6" />}
-          title="1. Informasi Awal"
-          items={["Identitas pelapor", "Klasifikasi kejadian", "Groban korban & GPS TKP"]}
+          title="1. Detail Kejadian"
+          items={["Klasifikasi & jumlah korban", "GPS TKP otomatis", "Jarak ke kantor instansi"]}
         />
         <StepCard
           icon={<Mic className="h-6 w-6" />}
           title="2. Panic Button"
-          items={["Rekam Voice Note", "Kronologi detail", "Hitung jarak ke kantor"]}
+          items={["Rekam Voice Note", "Kronologi detail", "Ringkasan sebelum kirim"]}
         />
         <StepCard
           icon={<Send className="h-6 w-6" />}

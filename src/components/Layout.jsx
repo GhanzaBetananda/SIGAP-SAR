@@ -1,5 +1,7 @@
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, LogOut } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthProvider.jsx";
+import { useReport } from "../context/useReport.js";
 import { adminUrl } from "../utils/domains.js";
 
 /** Daftar logo instansi yang tampil berjajar (urutan: 456, 472, BASARNAS). */
@@ -14,6 +16,14 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === "/";
+  const { session, logout } = useAuth();
+  const { resetReport } = useReport();
+
+  function handleLogout() {
+    logout();
+    resetReport(); // bersihkan identitas & isian laporan milik akun sebelumnya
+    // Sesi hilang -> seluruh rute otomatis kembali ke halaman login
+  }
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
@@ -60,6 +70,18 @@ export default function Layout({ children }) {
             </span>
             SIAGA
           </span>
+
+          {/* Keluar dari akun pelapor */}
+          {session && (
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label="Keluar dari akun"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 active:scale-90"
+            >
+              <LogOut className="h-4.5 w-4.5" />
+            </button>
+          )}
         </div>
 
         {/* Garis aksen biru–oranye khas BASARNAS */}

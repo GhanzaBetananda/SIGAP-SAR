@@ -1,37 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import Layout from "../components/Layout.jsx";
 import Stepper from "../components/Stepper.jsx";
 import PanicButton from "../components/PanicButton.jsx";
 import VoiceRecorder from "../components/VoiceRecorder.jsx";
 import DistanceInfo from "../components/DistanceInfo.jsx";
-import ReportSummary from "../components/ReportSummary.jsx";
+import IncidentForm from "../components/IncidentForm.jsx";
+import LocationPicker from "../components/LocationPicker.jsx";
 import { useReport } from "../context/useReport.js";
-import { validatePanicReport } from "../utils/validation.js";
+import { useAuth } from "../context/AuthProvider.jsx";
+import { validatePanicReport, validateInitialReport } from "../utils/validation.js";
 import { calculateDistances } from "../utils/distanceCalculator.js";
-import { getWhatsAppTargets, buildSummaryText } from "../utils/whatsappGenerator.js";
+import { getWhatsAppTargets, buildSummaryText, REPORTER_CATEGORIES } from "../utils/whatsappGenerator.js";
 import { isFireIncident } from "../data/incidentTypes.js";
-import { Lock, Send } from "lucide-react";
+import { Lock, Send, UserRound } from "lucide-react";
 
 export default function PanicReport() {
-  const navigate = useNavigate();
-  const { report, updateReport, saveReportLocally, initialValidation } = useReport();
+  const { session } = useAuth();
+  const { report, updateReport, saveReportLocally } = useReport();
   const [errors, setErrors] = useState({});
   const [waTargets, setWaTargets] = useState([]);
-
-  // Panic Button hanya dapat diakses setelah informasi awal lengkap
-  useEffect(() => {
-    if (!initialValidation.valid) {
-      Swal.fire({
-        icon: "warning",
-        title: "Informasi Awal Belum Lengkap",
-        text: "Lengkapi dulu informasi awal agar Panic Button dapat digunakan.",
-        confirmButtonColor: "#ea580c",
-        confirmButtonText: "Isi Informasi Awal",
-      }).then(() => navigate("/lapor-awal", { replace: true }));
-    }
-  }, [initialValidation.valid, navigate]);
 
   const fire = isFireIncident(report.classification);
 
@@ -42,7 +30,24 @@ export default function PanicReport() {
   );
 
   function handleSubmit() {
-    // 1. Validasi seluruh informasi laporan
+    // 1. Validasi identitas pelapor (dari akun) + detail kejadian & lokasi
+    const identityValidation = validateInitialReport(report);
+    if (!identityValidation.valid) {
+      setErrors(identityValidation.errors);
+      const errorList = Object.values(identityValidation.errors)
+        .map((message) => `<li style="text-align:left">${message}</li>`)
+        .join("");
+      Swal.fire({
+        icon: "warning",
+        title: "Data Belum Lengkap",
+        html: `<ul class="swal-error-list">${errorList}</ul>`,
+        confirmButtonColor: "#ea580c",
+        confirmButtonText: "Perbaiki",
+      });
+      return;
+    }
+
+    // 2. Validasi voice note & kronologi
     const validation = validatePanicReport(report);
     if (!validation.valid) {
       setErrors(validation.errors);
@@ -58,7 +63,7 @@ export default function PanicReport() {
       return;
     }
 
-    // 2. Konfirmasi + ringkasan laporan
+    // 3. Konfirmasi + ringkasan laporan
     Swal.fire({
       icon: "question",
       title: "Kirim Laporan?",
@@ -98,11 +103,47 @@ export default function PanicReport() {
 
   return (
     <Layout>
-      <Stepper current={3} />
+      <Stepper current={report.submittedAt ? 3 : 2} />
 
       <div className="mt-6 space-y-4">
-        {/* Rekap informasi awal agar dapat dilihat ulang sebelum submit */}
-        <ReportSummary report={report} onEdit={() => navigate("/lapor-awal")} />
+        {/* Identitas pelapor — otomatis dari data akun yang login */}
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="mb-1 flex items-center gap-2 text-lg font-bold text-slate-900">
+            <UserRound className="h-5 w-5 text-basarnasblue" />
+            Identitas Pelapor
+          </h2>
+          <p className="mb-3 text-sm text-slate-500">
+            Diambil dari akun login — tidak perlu diisi ulang.
+          </p>
+          <dl className="grid gap-2 text-sm sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2.5">
+              <dt className="font-medium text-slate-500">Nama Pelapor</dt>
+              <dd className="text-right font-bold text-slate-900">
+                {session?.name || "-"}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2.5">
+              <dt className="font-medium text-slate-500">Kategori</dt>
+              <dd className="text-right font-bold text-slate-900">
+                {REPORTER_CATEGORIES[session?.reporterCategory] || "-"}
+              </dd>
+            </div>
+            {session?.region && (
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2.5 sm:col-span-2">
+                <dt className="font-medium text-slate-500">
+                  {session.reporterCategory === "potensi_sar" ? "Kecamatan" : "Desa"}
+                </dt>
+                <dd className="text-right font-bold text-slate-900">{session.region}</dd>
+              </div>
+            )}
+          </dl>
+        </section>
+
+        {/* Klasifikasi kejadian + jumlah korban */}
+        <IncidentForm errors={errors} />
+
+        {/* Koordinat TKP via GPS */}
+        <LocationPicker errors={errors} />
 
         <VoiceRecorder errors={errors} />
 

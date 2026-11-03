@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 
 const STEPS = [
-  { id: 1, label: "Informasi Awal" },
+  { id: 1, label: "Mulai" },
   { id: 2, label: "Panic Button" },
   { id: 3, label: "Distribusi WhatsApp" },
 ];
