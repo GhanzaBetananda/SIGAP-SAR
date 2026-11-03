@@ -1,5 +1,6 @@
 import { ChevronLeft } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { adminUrl } from "../utils/domains.js";
 
 /** Daftar logo instansi yang tampil berjajar (urutan: 456, 472, BASARNAS). */
 const LOGOS = [
@@ -80,6 +81,15 @@ export default function Layout({ children }) {
             ))}
           </div>
           <p>copyright Basarnas 2026. All rights reserved.</p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            <a
+              href={adminUrl()}
+              className="underline-offset-2 hover:text-basarnasblue hover:underline"
+            >
+              Panel Admin
+            </a>{" "}
+            — diperuntukkan bagi petugas (domain admin terpisah)
+          </p>
         </div>
       </footer>
     </div>
