@@ -15,10 +15,13 @@ import {
   Flame,
   Inbox,
   ListChecks,
+  LogOut,
+  Lock,
   MapPin,
   RefreshCw,
   ShieldCheck,
   Siren,
+  UserRound,
   Users,
 } from "lucide-react";
 import { readSimulatedReports } from "../context/reportState.js";
@@ -26,6 +29,11 @@ import { getIncidentLabel, isFireIncident } from "../data/incidentTypes.js";
 import { REPORTER_CATEGORIES, reporterName } from "../utils/whatsappGenerator.js";
 import { formatDistanceKm } from "../utils/distanceCalculator.js";
 import { publicUrl } from "../utils/domains.js";
+import {
+  adminLogin,
+  adminLogout,
+  isAdminAuthenticated,
+} from "../config/adminAuth.js";
 
 const LOGOS = [
   { src: "/456.png", alt: "Logo 456" },
@@ -61,7 +69,126 @@ function statusDistribusi(report) {
     : "BASARNAS";
 }
 
+/**
+ * Gerbang admin: halaman login ditampilkan selama belum terautentikasi,
+ * panel history baru terbuka setelah login berhasil.
+ */
 export default function AdminHistory() {
+  const [authenticated, setAuthenticated] = useState(() => isAdminAuthenticated());
+
+  if (!authenticated) {
+    return <AdminLogin onSuccess={() => setAuthenticated(true)} />;
+  }
+  return <AdminDashboard onLogout={() => setAuthenticated(false)} />;
+}
+
+/**
+ * Halaman login khusus panel admin.
+ */
+function AdminLogin({ onSuccess }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    if (adminLogin(username, password)) {
+      setError("");
+      onSuccess();
+    } else {
+      setError("Username atau password salah.");
+    }
+  }
+
+  return (
+    <div className="flex min-h-dvh flex-col bg-slate-50">
+      <div className="h-1 bg-gradient-to-r from-basarnasblue via-basarnasblue to-sarorange" />
+      <div className="flex flex-1 items-center justify-center px-4 py-10">
+        <div className="w-full max-w-sm rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">
+          {/* Baris logo instansi */}
+          <div className="flex items-center justify-center gap-1.5">
+            {[ "/456.png", "/472.png", "/BASARNAS.png" ].map((src) => (
+              <img
+                key={src}
+                src={src}
+                alt={src.includes("BASARNAS") ? "Logo BASARNAS" : `Logo ${src}`}
+                className="h-10 w-10 rounded-full bg-white object-contain p-0.5 ring-1 ring-slate-200"
+              />
+            ))}
+          </div>
+
+          <h1 className="mt-4 text-center text-lg font-extrabold tracking-wide text-basarnasblue">
+            ADMIN BASARNAS
+          </h1>
+          <p className="mt-1 text-center text-xs text-slate-500">
+            Panel internal — masuk dengan akun petugas
+          </p>
+
+          <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
+            <div>
+              <label htmlFor="admin-username" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                Username
+              </label>
+              <div className="relative">
+                <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
+                <input
+                  id="admin-username"
+                  type="text"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Username"
+                  autoFocus
+                  className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-base outline-none focus:border-basarnasblue"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="admin-password" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
+                <input
+                  id="admin-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-base outline-none focus:border-basarnasblue"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm font-medium text-red-600">
+                {error}
+              </p>
+            )}
+
+            {/* Tombol login */}
+            <button
+              type="submit"
+              disabled={!username || !password}
+              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-basarnasblue text-base font-bold text-white transition-all hover:bg-basarnasblue-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ShieldCheck className="h-5 w-5" />
+              Masuk Panel Admin
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <footer className="border-t border-slate-200/70 bg-white py-4 text-center text-xs text-slate-500">
+        ADMIN BASARNAS — Akses terbatas bagi petugas berwenang
+      </footer>
+    </div>
+  );
+}
+
+function AdminDashboard({ onLogout }) {
   const [reports, setReports] = useState([]);
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -141,6 +268,19 @@ export default function AdminHistory() {
               History Laporan Panic Button
             </p>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              adminLogout();
+              onLogout();
+            }}
+            aria-label="Keluar"
+            className="flex h-10 shrink-0 items-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-sm font-semibold text-red-600 shadow-sm transition-colors hover:bg-red-50 active:scale-95"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Keluar</span>
+          </button>
 
           <button
             type="button"
