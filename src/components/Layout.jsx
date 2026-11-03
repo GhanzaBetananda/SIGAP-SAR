@@ -17,7 +17,7 @@ export default function Layout({ children }) {
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
       <header className="safe-area-top sticky top-0 z-30 border-b border-slate-200/70 bg-white/95 shadow-sm shadow-slate-900/5 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3.5">
+        <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 py-3.5 sm:gap-3 sm:px-4">
           {/* Tombol kembali saat sedang berada di alur pelaporan */}
           {!isHome && (
             <button
@@ -30,29 +30,29 @@ export default function Layout({ children }) {
             </button>
           )}
 
-          {/* Baris logo instansi (urutan: 456, 472, BASARNAS) */}
-          <span className="flex h-11 shrink-0 items-center gap-1.5">
+          {/* Baris logo instansi (urutan: 456, 472, BASARNAS) — lebih kecil di layar sempit */}
+          <span className="flex h-11 shrink-0 items-center gap-1 sm:gap-1.5">
             {LOGOS.map((logo) => (
               <img
                 key={logo.src}
                 src={logo.src}
                 alt={logo.alt}
-                className="h-9 w-9 rounded-full bg-white object-contain p-0.5 ring-1 ring-slate-200"
+                className="h-7 w-7 rounded-full bg-white object-contain p-0.5 ring-1 ring-slate-200 sm:h-9 sm:w-9"
               />
             ))}
           </span>
 
           <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-base font-extrabold tracking-wide text-basarnasblue">
+            <p className="text-sm font-extrabold tracking-wide text-basarnasblue sm:text-base">
               PANIC BUTTON SAR
             </p>
-            <p className="truncate text-[11px] text-slate-500">
+            <p className="text-[10px] leading-snug text-slate-500 sm:text-[11px]">
               Sistem Pelaporan Awal Kejadian BASARNAS
             </p>
           </div>
 
           {/* Badge status siaga */}
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-basarnasblue/15 bg-basarnasblue/5 px-2.5 py-1.5 text-[10px] font-bold tracking-widest text-basarnasblue">
+          <span className="flex shrink-0 items-center gap-1 rounded-full border border-basarnasblue/15 bg-basarnasblue/5 px-2 py-1 text-[9px] font-bold tracking-widest text-basarnasblue sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[10px]">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sarorange opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-sarorange" />

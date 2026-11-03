@@ -11,11 +11,13 @@ import { formatDistanceKm } from "./distanceCalculator.js";
 export const REPORTER_CATEGORIES = {
   pegawai_basarnas: "Pegawai BASARNAS",
   potensi_sar: "Potensi SAR",
+  kampung_rescue: "Kampung Rescue",
 };
 
 export function reporterName(report) {
   if (report.reporterCategory === "pegawai_basarnas") return report.employeeName || "-";
   if (report.reporterCategory === "potensi_sar") return report.potentialSarName || "-";
+  if (report.reporterCategory === "kampung_rescue") return report.kampungRescueName || "-";
   return "-";
 }
 
@@ -23,6 +25,9 @@ function reporterCategoryLabel(report) {
   let label = REPORTER_CATEGORIES[report.reporterCategory] || "-";
   if (report.reporterCategory === "potensi_sar" && report.district) {
     label += ` — Kecamatan ${report.district}`;
+  }
+  if (report.reporterCategory === "kampung_rescue" && report.kampungRescueDesa) {
+    label += ` — ${report.kampungRescueDesa}`;
   }
   return label;
 }
@@ -130,7 +135,9 @@ export function buildSummaryText(report) {
   const name =
     report.reporterCategory === "pegawai_basarnas"
       ? report.employeeName
-      : report.potentialSarName;
+      : report.reporterCategory === "potensi_sar"
+        ? report.potentialSarName
+        : report.kampungRescueName;
   return [
     `Pelapor: ${name || "-"} (${category})`,
     `Klasifikasi: ${getIncidentLabel(report.classification) || "-"}`,

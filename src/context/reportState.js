@@ -8,10 +8,12 @@ import { createContext } from "react";
 
 export const EMPTY_REPORT = {
   // Identitas pelapor
-  reporterCategory: "", // "pegawai_basarnas" | "potensi_sar"
+  reporterCategory: "", // "pegawai_basarnas" | "potensi_sar" | "kampung_rescue"
   employeeName: "",
   district: "",
   potentialSarName: "",
+  kampungRescueDesa: "",
+  kampungRescueName: "",
 
   // Informasi kejadian
   classification: "",

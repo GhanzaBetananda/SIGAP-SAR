@@ -38,6 +38,13 @@ export function validateInitialReport(report) {
     if (!report.potentialSarName) {
       errors.potentialSarName = "Pilih atau cari nama Potensi SAR.";
     }
+  } else if (report.reporterCategory === "kampung_rescue") {
+    if (!report.kampungRescueDesa) {
+      errors.kampungRescueDesa = "Pilih desa Kampung Rescue terlebih dahulu.";
+    }
+    if (!report.kampungRescueName) {
+      errors.kampungRescueName = "Pilih atau cari nama perwakilan Kampung Rescue.";
+    }
   }
 
   if (!report.classification) {

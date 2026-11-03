@@ -2,8 +2,12 @@ import { useReport } from "../context/useReport.js";
 import { BASARNAS_EMPLOYEES } from "../data/employees.js";
 import { DISTRICTS } from "../data/districts.js";
 import { POTENTIAL_SAR } from "../data/potentialSar.js";
+import {
+  KAMPUNG_RESCUE,
+  KAMPUNG_RESCUE_DESA,
+} from "../data/kampungRescue.js";
 import SearchSelect from "./SearchSelect.jsx";
-import { Building2, ChevronDown, HeartHandshake } from "lucide-react";
+import { Building2, ChevronDown, HeartHandshake, House } from "lucide-react";
 
 const CATEGORY_OPTIONS = [
   {
@@ -18,6 +22,12 @@ const CATEGORY_OPTIONS = [
     description: "Laporkan sebagai relawan Potensi SAR di kecamatan Anda.",
     icon: HeartHandshake,
   },
+  {
+    value: "kampung_rescue",
+    label: "Kampung Rescue",
+    description: "Laporkan sebagai perwakilan Kampung Rescue di desa Anda.",
+    icon: House,
+  },
 ];
 
 /**
@@ -29,6 +39,9 @@ export default function ReporterForm({ errors = {} }) {
   const { report, updateReport } = useReport();
 
   const potentialSarNames = report.district ? (POTENTIAL_SAR[report.district] ?? []) : [];
+  const kampungRescueNames = report.kampungRescueDesa
+    ? KAMPUNG_RESCUE[report.kampungRescueDesa] ?? []
+    : [];
 
   function handleCategoryChange(value) {
     // Reset isian identitas saat berganti kategori
@@ -37,6 +50,8 @@ export default function ReporterForm({ errors = {} }) {
       employeeName: "",
       district: "",
       potentialSarName: "",
+      kampungRescueDesa: "",
+      kampungRescueName: "",
     });
   }
 
@@ -48,7 +63,7 @@ export default function ReporterForm({ errors = {} }) {
       </p>
 
       {/* Kategori pelapor */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         {CATEGORY_OPTIONS.map((option) => {
           const Icon = option.icon;
           const active = report.reporterCategory === option.value;
@@ -148,6 +163,54 @@ export default function ReporterForm({ errors = {} }) {
             />
             {errors.potentialSarName && (
               <p className="mt-2 text-sm font-medium text-red-600">{errors.potentialSarName}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {report.reporterCategory === "kampung_rescue" && (
+        <div className="mt-5 grid gap-4">
+          <div>
+            <label htmlFor="kampung-rescue-desa" className="mb-1.5 block text-sm font-semibold text-slate-700">
+              Desa Kampung Rescue
+            </label>
+            <div className="relative">
+              <select
+                id="kampung-rescue-desa"
+                value={report.kampungRescueDesa}
+                onChange={(e) =>
+                  updateReport({ kampungRescueDesa: e.target.value, kampungRescueName: "" })
+                }
+                className={`h-14 w-full appearance-none rounded-xl border-2 bg-white pl-4 pr-11 text-base outline-none focus:border-basarnasblue
+                  ${errors.kampungRescueDesa ? "border-red-400" : report.kampungRescueDesa ? "border-basarnasblue" : "border-slate-300"}`}
+              >
+                <option value="">— Pilih desa —</option>
+                {KAMPUNG_RESCUE_DESA.map((desa) => (
+                  <option key={desa} value={desa}>
+                    {desa}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+            </div>
+            {errors.kampungRescueDesa && (
+              <p className="mt-2 text-sm font-medium text-red-600">{errors.kampungRescueDesa}</p>
+            )}
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+              Nama Perwakilan Kampung Rescue
+            </span>
+            <SearchSelect
+              options={kampungRescueNames}
+              value={report.kampungRescueName}
+              onChange={(name) => updateReport({ kampungRescueName: name })}
+              disabled={!report.kampungRescueDesa}
+              disabledPlaceholder="Pilih desa terlebih dahulu"
+            />
+            {errors.kampungRescueName && (
+              <p className="mt-2 text-sm font-medium text-red-600">{errors.kampungRescueName}</p>
             )}
           </div>
         </div>

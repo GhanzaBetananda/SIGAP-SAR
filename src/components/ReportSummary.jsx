@@ -32,10 +32,15 @@ export default function ReportSummary({ report, onEdit }) {
           ? report.employeeName
           : report.reporterCategory === "potensi_sar"
             ? report.potentialSarName
-            : "-",
+            : report.reporterCategory === "kampung_rescue"
+              ? report.kampungRescueName
+              : "-",
     },
     ...(report.reporterCategory === "potensi_sar"
       ? [{ label: "Kecamatan", value: report.district }]
+      : []),
+    ...(report.reporterCategory === "kampung_rescue"
+      ? [{ label: "Desa", value: report.kampungRescueDesa }]
       : []),
     { label: "Klasifikasi Kejadian", value: getIncidentLabel(report.classification) || "-" },
     { label: "Jumlah Korban", value: String(report.victimCount) },

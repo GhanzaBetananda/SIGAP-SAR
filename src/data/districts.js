@@ -1,15 +1,31 @@
 // ============================================================
-// DUMMY DATA: DAFTAR KECAMATAN
-// Ganti dengan data riil saat integrasi ke backend.
+// DATA: DAFTAR KECAMATAN KABUPATEN BANYUWANGI (25 kecamatan)
 // ============================================================
 
 export const DISTRICTS = [
-  "Jayapura Utara",
-  "Jayapura Selatan",
-  "Jayapura Timur",
-  "Jayapura Barat",
-  "Abepura",
-  "Sentani",
-  "Waena",
-  "Muara Tami",
+  "Pesanggaran",
+  "Bangorejo",
+  "Purwoharjo",
+  "Tegaldlimo",
+  "Muncar",
+  "Cluring",
+  "Gambiran",
+  "Srono",
+  "Genteng",
+  "Glenmore",
+  "Kalibaru",
+  "Singojuruh",
+  "Rogojampi",
+  "Kabat",
+  "Glagah",
+  "Banyuwangi (Banyuwangi Kota)",
+  "Giri",
+  "Wongsorejo",
+  "Songgon",
+  "Sempu",
+  "Kalipuro",
+  "Siliragung",
+  "Tegalsari",
+  "Licin",
+  "Blimbingsari",
 ];
