@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import PanicButton from "../components/PanicButton.jsx";
 import Stepper from "../components/Stepper.jsx";
+import { useReport } from "../context/useReport.js";
 import {
   AlertTriangle,
   ClipboardList,
@@ -12,6 +13,7 @@ import {
 
 export default function Home() {
   const navigate = useNavigate();
+  const { report } = useReport();
 
   function handlePanicPress() {
     // Pelapor sudah login (identitas dari akun) — langsung ke halaman panic
