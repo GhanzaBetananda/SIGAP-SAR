@@ -2,6 +2,7 @@ import { ChevronLeft, LogOut } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider.jsx";
 import { useReport } from "../context/useReport.js";
+import { countActiveIncidents } from "../context/reportState.js";
 import { adminUrl } from "../utils/domains.js";
 
 /** Daftar logo instansi yang tampil berjajar (urutan: 456, 472, BASARNAS). */
@@ -18,6 +19,8 @@ export default function Layout({ children }) {
   const isHome = location.pathname === "/";
   const { session, logout } = useAuth();
   const { resetReport } = useReport();
+  // Status instansi: SIAGA bila ada laporan aktif (belum selesai) dalam 24 jam
+  const statusAlert = countActiveIncidents(24) > 0 ? "SIAGA" : "DAMAI";
 
   function handleLogout() {
     logout();
@@ -55,20 +58,29 @@ export default function Layout({ children }) {
 
           <div className="min-w-0 flex-1 leading-tight">
             <p className="text-sm font-extrabold tracking-wide text-basarnasblue sm:text-base">
-              PANIC BUTTON SAR
+              SAT SET
             </p>
             <p className="text-[10px] leading-snug text-slate-500 sm:text-[11px]">
-              Sistem Pelaporan Awal Kejadian BASARNAS
+              Sistem Aplikasi Tanggap &amp; Siaga Evakuasi Terpadu
             </p>
           </div>
 
-          {/* Badge status siaga */}
-          <span className="flex shrink-0 items-center gap-1 rounded-full border border-basarnasblue/15 bg-basarnasblue/5 px-2 py-1 text-[9px] font-bold tracking-widest text-basarnasblue sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[10px]">
+          {/* Badge status instansi — mengikuti laporan aktif (24 jam) */}
+          <span
+            className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold tracking-widest sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[10px]
+              ${statusAlert === "SIAGA"
+                ? "border-orange-300 bg-orange-50 text-orange-700"
+                : "border-basarnasblue/15 bg-basarnasblue/5 text-basarnasblue"}`}
+          >
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sarorange opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-sarorange" />
+              {statusAlert === "SIAGA" && (
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sarorange opacity-75" />
+              )}
+              <span
+                className={`relative inline-flex h-2 w-2 rounded-full ${statusAlert === "SIAGA" ? "bg-sarorange" : "bg-basarnasblue"}`}
+              />
             </span>
-            SIAGA
+            {statusAlert}
           </span>
 
           {/* Keluar dari akun pelapor */}

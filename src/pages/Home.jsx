@@ -3,6 +3,8 @@ import Layout from "../components/Layout.jsx";
 import PanicButton from "../components/PanicButton.jsx";
 import Stepper from "../components/Stepper.jsx";
 import { useReport } from "../context/useReport.js";
+import { useAuth } from "../context/AuthProvider.jsx";
+import { ReportHistorySection } from "../components/ReportHistorySection.jsx";
 import {
   AlertTriangle,
   ClipboardList,
@@ -14,6 +16,7 @@ import {
 export default function Home() {
   const navigate = useNavigate();
   const { report } = useReport();
+  const { session } = useAuth();
 
   function handlePanicPress() {
     // Pelapor sudah login (identitas dari akun) — langsung ke halaman panic
@@ -61,11 +64,15 @@ export default function Home() {
 
         {report.submittedAt && (
           <p className="mb-6 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
-            Laporan terakhir telah disiapkan pada simulasi frontend. Lanjutkan ke halaman
-            Panic Button untuk melihat tautan WhatsApp.
+            {report.ticketId
+              ? `Laporan tiket ${report.ticketId} telah disiapkan — lakukan kirim manual pada tautan WhatsApp.`
+              : "Laporan terakhir telah disiapkan — kirim manual pada tautan WhatsApp."}
           </p>
         )}
       </section>
+
+      {/* Riwayat & status laporan milik akun ini */}
+      <ReportHistorySection username={session.username} />
 
       <section className="grid gap-3 sm:grid-cols-3">
         <StepCard

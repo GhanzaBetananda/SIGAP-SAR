@@ -25,6 +25,11 @@ export const EMPTY_REPORT = {
   locationAccuracy: null,
   locationStatus: "idle", // "idle" | "loading" | "ready" | "error"
   locationError: "",
+  tkpDistrict: "", // kecamatan TKP hasil deteksi otomatis (reverse geocoding)
+
+  // Foto TKP (opsional, dikompres menjadi dataURL JPEG)
+  photoUrl: "",
+  photoName: "",
 
   // Panic Button
   voiceNoteUrl: "",
@@ -37,6 +42,8 @@ export const EMPTY_REPORT = {
 
 // Penyimpanan simulasi laporan terkirim (frontend-only)
 const SIMULATED_REPORTS_KEY = "panic_button_simulated_reports";
+// Batas jumlah laporan yang disimpan agar localStorage tidak penuh
+const MAX_SAVED_REPORTS = 50;
 
 export const ReportContext = createContext(null);
 
@@ -49,9 +56,34 @@ export function readSimulatedReports() {
 }
 
 export function writeSimulatedReports(reports) {
+  // Pangkas laporan terlama agar di bawah batas kuota
+  let trimmed = reports.slice(-MAX_SAVED_REPORTS);
   try {
-    localStorage.setItem(SIMULATED_REPORTS_KEY, JSON.stringify(reports));
+    localStorage.setItem(SIMULATED_REPORTS_KEY, JSON.stringify(trimmed));
   } catch {
-    /* storage penuh/nonaktif — simulasi tetap berjalan in-memory */
+    // Kuota penuh (mis. foto besar): buang laporan terlama satu per satu
+    try {
+      while (trimmed.length > 10) {
+        trimmed = trimmed.slice(1);
+        localStorage.setItem(SIMULATED_REPORTS_KEY, JSON.stringify(trimmed));
+      }
+    } catch {
+      /* storage benar-benar tidak tersedia — data tetap hidup di state memori */
+    }
   }
+}
+
+/**
+ * Berapa laporan masih aktif (belum selesai) dalam rentang waktu tertentu.
+ * Dipakai untuk status kesiagaan instansi di header.
+ * @param {number} withinHours
+ */
+export function countActiveIncidents(withinHours = 24) {
+  const cutoff = Date.now() - withinHours * 60 * 60 * 1000;
+  return readSimulatedReports().filter(
+    (report) =>
+      report.submittedAt &&
+      report.status !== "selesai" &&
+      new Date(report.submittedAt).getTime() >= cutoff,
+  ).length;
 }

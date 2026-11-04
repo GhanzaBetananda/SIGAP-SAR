@@ -1,5 +1,5 @@
 // ============================================================
-// LOGIN PELAPOR SIGAPSAR
+// LOGIN PELAPOR — SAT SET (Sistem Aplikasi Tanggap & Siaga Evakuasi Terpadu)
 // Seluruh fitur pelaporan terkunci sampai pelapor masuk. Identitas
 // pelapor (nama/kategori/wilayah) diambil dari data akun sehingga
 // "Informasi Awal" tidak lagi perlu diisi manual.
@@ -20,7 +20,13 @@ const LOGOS = [
 
 /** Menyalin identitas akun ke state laporan agar seluruh halaman konsisten. */
 function identityPatch(session) {
-  const patch = { reporterCategory: session.reporterCategory };
+  const patch = {
+    reporterCategory: session.reporterCategory,
+    // Reset data spesifik laporan lama
+    tkpDistrict: "",
+    photoUrl: "",
+    photoName: "",
+  };
   if (session.reporterCategory === "pegawai_basarnas") {
     patch.employeeName = session.name;
     patch.district = "";
@@ -89,10 +95,10 @@ export default function Login() {
           </div>
 
           <h1 className="mt-4 text-center text-lg font-extrabold tracking-wide text-basarnasblue">
-            SIGAPSAR
+            SAT SET
           </h1>
           <p className="mt-1 text-center text-xs leading-snug text-slate-500">
-            Sistem Pelaporan Awal Kejadian BASARNAS Banyuwangi
+            Sistem Aplikasi Tanggap &amp; Siaga Evakuasi Terpadu — BASARNAS Banyuwangi
           </p>
 
           <form onSubmit={handleSubmit} className="mt-6 grid gap-4">

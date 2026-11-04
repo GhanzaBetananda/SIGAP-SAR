@@ -1,39 +1,40 @@
 // ============================================================
 // PANEL ADMIN BASARNAS — HISTORY LAPORAN PANIC BUTTON
-// Halaman milik "domain berbeda" (mis. admin.panicbutton...):
-// dipisahkan dari alur pelapor publik dan dilayani lewat route
-// /admin yang dipetakan via vercel.json (rewrites).
+// Halaman milik "domain berbeda" (mis. admin.sigapsar...):
 //
-// Sumber data saat ini: laporan terkirim pada perangkat ini
-// (localStorage, simulasi frontend). Saat backend tersedia,
-// cukup ganti sumber data di loadReports() dengan fetch API.
+// Fitur: statistik, filter+pencarian, nomor tiket, foto TKP,
+// alur status pelaporan (Baru -> Diproses -> Selesai), dan
+// peringatan suara+banner saat laporan baru masuk.
+// Sumber data saat ini: localStorage perangkat ini (simulasi).
+// Ganti loadReports()/updateStatus() dengan fetch API s
+// saat backend tersedia.
 // ============================================================
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ExternalLink,
   Flame,
   Inbox,
   ListChecks,
   LogOut,
-  Lock,
   MapPin,
   RefreshCw,
   ShieldCheck,
   Siren,
-  UserRound,
+  TriangleAlert,
   Users,
 } from "lucide-react";
-import { readSimulatedReports } from "../context/reportState.js";
+import {
+  readSimulatedReports,
+  writeSimulatedReports,
+} from "../context/reportState.js";
 import { getIncidentLabel, isFireIncident } from "../data/incidentTypes.js";
+import { districtLabel } from "../data/districts.js";
 import { REPORTER_CATEGORIES, reporterName } from "../utils/whatsappGenerator.js";
 import { formatDistanceKm } from "../utils/distanceCalculator.js";
 import { publicUrl } from "../utils/domains.js";
-import {
-  adminLogin,
-  adminLogout,
-  isAdminAuthenticated,
-} from "../config/adminAuth.js";
+import { adminLogout, isAdminAuthenticated } from "../config/adminAuth.js";
+import { STATUS_LABELS, STATUS_STYLES } from "../components/ReportHistorySection.jsx";
 
 const LOGOS = [
   { src: "/456.png", alt: "Logo 456" },
@@ -43,6 +44,29 @@ const LOGOS = [
 
 const FIRE = "fire";
 const NON_FIRE = "non_fire";
+
+/** Dua nada pendek sebagai alarm laporan baru (tanpa berkas audio). */
+function playAlertTone() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    [0, 0.25].forEach((offset) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.12, ctx.currentTime + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.2);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + offset);
+      osc.stop(ctx.currentTime + offset + 0.2);
+    });
+    setTimeout(() => ctx.close?.(), 800);
+  } catch {
+    /* audio diblokir browser — banner tetap muncul */
+  }
+}
 
 function formatDateTime(iso) {
   if (!iso) return "-";
@@ -58,7 +82,7 @@ function formatDateTime(iso) {
 
 /** Teks singkat wilayah pelapor (kecamatan / desa). */
 function reporterRegion(report) {
-  if (report.reporterCategory === "potensi_sar") return report.district;
+  if (report.reporterCategory === "potensi_sar") return districtLabel(report.district);
   if (report.reporterCategory === "kampung_rescue") return report.kampungRescueDesa;
   return "";
 }
@@ -70,12 +94,10 @@ function statusDistribusi(report) {
 }
 
 /**
- * Gerbang admin: halaman login ditampilkan selama belum terautentikasi,
- * panel history baru terbuka setelah login berhasil.
+ * Gerbang admin: halaman login ditampilkan selama belum terautentikasi.
  */
 export default function AdminHistory() {
   const [authenticated, setAuthenticated] = useState(() => isAdminAuthenticated());
-
   if (!authenticated) {
     return <AdminLogin onSuccess={() => setAuthenticated(true)} />;
   }
@@ -105,13 +127,12 @@ function AdminLogin({ onSuccess }) {
       <div className="h-1 bg-gradient-to-r from-basarnasblue via-basarnasblue to-sarorange" />
       <div className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-sm rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">
-          {/* Baris logo instansi */}
           <div className="flex items-center justify-center gap-1.5">
-            {[ "/456.png", "/472.png", "/BASARNAS.png" ].map((src) => (
+            {LOGOS.map((logo) => (
               <img
-                key={src}
-                src={src}
-                alt={src.includes("BASARNAS") ? "Logo BASARNAS" : `Logo ${src}`}
+                key={logo.src}
+                src={logo.src}
+                alt={logo.alt}
                 className="h-10 w-10 rounded-full bg-white object-contain p-0.5 ring-1 ring-slate-200"
               />
             ))}
@@ -129,37 +150,30 @@ function AdminLogin({ onSuccess }) {
               <label htmlFor="admin-username" className="mb-1.5 block text-sm font-semibold text-slate-700">
                 Username
               </label>
-              <div className="relative">
-                <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
-                <input
-                  id="admin-username"
-                  type="text"
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Username"
-                  autoFocus
-                  className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-base outline-none focus:border-basarnasblue"
-                />
-              </div>
+              <input
+                id="admin-username"
+                type="text"
+                autoComplete="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Username"
+                autoFocus
+                className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-4 text-base outline-none focus:border-basarnasblue"
+              />
             </div>
-
             <div>
               <label htmlFor="admin-password" className="mb-1.5 block text-sm font-semibold text-slate-700">
                 Password
               </label>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
-                <input
-                  id="admin-password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-base outline-none focus:border-basarnasblue"
-                />
-              </div>
+              <input
+                id="admin-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-4 text-base outline-none focus:border-basarnasblue"
+              />
             </div>
 
             {error && (
@@ -168,7 +182,6 @@ function AdminLogin({ onSuccess }) {
               </p>
             )}
 
-            {/* Tombol login */}
             <button
               type="submit"
               disabled={!username || !password}
@@ -193,18 +206,39 @@ function AdminDashboard({ onLogout }) {
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [newCount, setNewCount] = useState(0);
+  const prevCountRef = useRef(0);
 
   const loadReports = useCallback(() => {
     const history = readSimulatedReports()
       .filter((item) => Boolean(item.submittedAt))
       .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+
+    // Peringatan laporan baru: bunyi + banner (bukan pada pemuatan awal)
+    if (prevCountRef.current > 0 && history.length > prevCountRef.current) {
+      setNewCount((prev) => prev + (history.length - prevCountRef.current));
+      playAlertTone();
+    }
+    prevCountRef.current = history.length;
+
     setReports(history);
     setUpdatedAt(new Date());
   }, []);
 
+  /** Ubah status penanganan laporan (baru -> diproses -> selesai). */
+  const updateStatus = useCallback(
+    (ticketId, status) => {
+      const next = readSimulatedReports().map((report) =>
+        report.ticketId === ticketId ? { ...report, status } : report,
+      );
+      writeSimulatedReports(next);
+      loadReports();
+    },
+    [loadReports],
+  );
+
   useEffect(() => {
     loadReports();
-    // Segarkan otomatis agar laporan baru terlihat tanpa reload manual
     const interval = setInterval(loadReports, 15000);
     return () => clearInterval(interval);
   }, [loadReports]);
@@ -217,11 +251,11 @@ function AdminDashboard({ onLogout }) {
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return [
+      report.ticketId,
       reporterName(report),
       REPORTER_CATEGORIES[report.reporterCategory],
       reporterRegion(report),
       getIncidentLabel(report.classification),
-      reporterName(report) + " " + reporterRegion(report),
     ]
       .join(" ")
       .toLowerCase()
@@ -243,7 +277,7 @@ function AdminDashboard({ onLogout }) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
-      {/* Header admin — gaya berbeda dari aplikasi pelapor publik */}
+      {/* Header admin */}
       <header className="safe-area-top sticky top-0 z-30 border-b border-slate-200/70 bg-white/95 shadow-sm shadow-slate-900/5 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-3 py-3.5 sm:gap-3 sm:px-4">
           <span className="flex shrink-0 items-center gap-1 sm:gap-1.5">
@@ -259,9 +293,9 @@ function AdminDashboard({ onLogout }) {
 
           <div className="min-w-0 flex-1 leading-tight">
             <p className="flex flex-wrap items-center gap-x-2 text-sm font-extrabold tracking-wide text-basarnasblue sm:text-base">
-              ADMIN BASARNAS
+              ADMIN SAT SET
               <span className="rounded-full bg-sarorange/10 px-2 py-0.5 text-[9px] font-bold tracking-widest text-sarorange sm:text-[10px]">
-                PANEL INTERNAL
+                PANEL INTERNAL BASARNAS
               </span>
             </p>
             <p className="text-[10px] leading-snug text-slate-500 sm:text-[11px]">
@@ -293,11 +327,27 @@ function AdminDashboard({ onLogout }) {
           </button>
         </div>
 
-        {/* Garis aksen dibalik sesuai posisi domain admin */}
         <div className="h-1 bg-gradient-to-r from-basarnasblue via-basarnasblue to-sarorange" />
       </header>
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-8 pt-5">
+        {/* Banner alarm laporan baru */}
+        {newCount > 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-orange-300 bg-orange-50 p-3 text-sm font-semibold text-orange-800">
+            <span className="flex items-center gap-2">
+              <TriangleAlert className="h-4 w-4 animate-pulse" />
+              {newCount} laporan baru masuk! Segera lakukan pemeriksaan.
+            </span>
+            <button
+              type="button"
+              onClick={() => setNewCount(0)}
+              className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-orange-700 shadow-sm"
+            >
+              Tandai sudah dibaca
+            </button>
+          </div>
+        )}
+
         {/* Ringkasan statistik */}
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard
@@ -348,7 +398,7 @@ function AdminDashboard({ onLogout }) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari pelapor / kecamatan / klasifikasi..."
+            placeholder="Cari tiket / pelapor / wilayah..."
             className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-4 text-base outline-none focus:border-basarnasblue sm:max-w-xs"
           />
         </section>
@@ -358,8 +408,8 @@ function AdminDashboard({ onLogout }) {
           {updatedAt && (
             <p className="mb-3 text-xs text-slate-400">
               Diperbarui {formatDateTime(updatedAt.toISOString())} — data dibaca dari
-              laporan terkirim pada perangkat ini (simulasi frontend; backend akan
-              menyajikan laporan dari seluruh pelapor).
+              perangkat ini (simulasi frontend; backend akan menyajikan laporan seluruh
+              pelapor).
             </p>
           )}
 
@@ -378,25 +428,108 @@ function AdminDashboard({ onLogout }) {
               <table className="hidden w-full text-left text-sm md:table">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-4 py-3 font-bold">Waktu</th>
+                    <th className="px-4 py-3 font-bold">Tiket</th>
                     <th className="px-4 py-3 font-bold">Pelapor</th>
                     <th className="px-4 py-3 font-bold">Klasifikasi</th>
                     <th className="px-4 py-3 text-center font-bold">Korban</th>
-                    <th className="px-4 py-3 font-bold">Jarak ke BASARNAS</th>
+                    <th className="px-4 py-3 font-bold">Jarak</th>
+                    <th className="px-4 py-3 font-bold">Status</th>
                     <th className="px-4 py-3 font-bold">TKP</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filtered.map((report) => (
-                    <ReportRow key={report.id ?? report.submittedAt} report={report} variant="table" />
-                  ))}
+                  {filtered.map((report) => {
+                    const key = report.ticketId ?? report.submittedAt;
+                    return (
+                      <tr key={key} className="transition-colors hover:bg-slate-50/80">
+                        <td className="px-4 py-3">
+                          <p className="font-mono text-xs font-bold text-basarnasblue">
+                            {report.ticketId ?? "-"}
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            {formatDateTime(report.submittedAt)}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-bold text-slate-900">{reporterName(report)}</p>
+                          <p className="text-xs text-slate-500">
+                            {REPORTER_CATEGORIES[report.reporterCategory] || "-"}
+                            {reporterRegion(report) ? ` — ${reporterRegion(report)}` : ""}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <ClassificationBadge classification={report.classification} />
+                        </td>
+                        <td className="px-4 py-3 text-center font-bold text-slate-900">
+                          {report.victimCount}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap font-medium text-slate-700">
+                          {formatDistanceKm(report.distances?.basarnas ?? null)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={report.status ?? "baru"}
+                            onChange={(e) =>
+                              updateStatus(report.ticketId, e.target.value)
+                            }
+                            aria-label={`Status ${report.ticketId ?? ""}`}
+                            className={`w-32 rounded-lg border-2 px-2 py-1.5 text-xs font-bold outline-none ${
+                              STATUS_STYLES[report.status ?? "baru"]
+                            } ${
+                              (report.status ?? "baru") === "baru"
+                                ? "border-orange-300"
+                                : (report.status ?? "baru") === "diproses"
+                                  ? "border-basarnasblue/30"
+                                  : "border-emerald-300"
+                            }`}
+                          >
+                            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {report.photoUrl && (
+                              <a
+                                href={report.photoUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block shrink-0"
+                              >
+                                <img
+                                  src={report.photoUrl}
+                                  alt="Foto TKP"
+                                  className="h-9 w-9 rounded-lg object-cover ring-1 ring-slate-200"
+                                />
+                              </a>
+                            )}
+                            <a
+                              href={`https://www.google.com/maps?q=${report.latitude},${report.longitude}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-basarnasblue px-3 py-1.5 text-xs font-bold text-white hover:bg-basarnasblue-dark"
+                            >
+                              <MapPin className="h-3.5 w-3.5" /> Maps
+                            </a>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
               {/* Kartu untuk layar HP */}
               <div className="divide-y divide-slate-100 md:hidden">
                 {filtered.map((report) => (
-                  <ReportRow key={report.id ?? report.submittedAt} report={report} variant="card" />
+                  <AdminReportCard
+                    key={report.ticketId ?? report.submittedAt}
+                    report={report}
+                    onStatusChange={(status) => updateStatus(report.ticketId, status)}
+                  />
                 ))}
               </div>
             </div>
@@ -413,7 +546,7 @@ function AdminDashboard({ onLogout }) {
       <footer className="border-t border-slate-200/70 bg-white">
         <div className="safe-area-bottom mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-5 text-center text-xs text-slate-500">
           <span className="flex items-center gap-1.5 font-semibold text-basarnasblue">
-            <ShieldCheck className="h-3.5 w-3.5" /> Panel Admin — panicbutton.basarnas
+            <ShieldCheck className="h-3.5 w-3.5" /> Panel Admin SAT SET — Basarnas Banyuwangi
           </span>
           <span className="text-slate-300">|</span>
           <a href={publicUrl()} className="underline-offset-2 hover:underline">
@@ -450,63 +583,33 @@ function ClassificationBadge({ classification }) {
   );
 }
 
-/** Satu baris laporan: tabel (md+) atau kartu (HP). */
-function ReportRow({ report, variant }) {
+/** Kartu laporan untuk layar HP: lengkap dengan tiket, status, & foto. */
+function AdminReportCard({ report, onStatusChange }) {
   const fire = isFireIncident(report.classification);
   const mapsUrl = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
-  const region = reporterRegion(report);
-  const category = REPORTER_CATEGORIES[report.reporterCategory] || "-";
-  const name = reporterName(report);
+  const status = report.status ?? "baru";
 
-  if (variant === "table") {
-    return (
-      <tr className="transition-colors hover:bg-slate-50/80">
-        <td className="px-4 py-3 whitespace-nowrap font-semibold text-slate-700">
-          {formatDateTime(report.submittedAt)}
-        </td>
-        <td className="px-4 py-3">
-          <p className="font-bold text-slate-900">{name}</p>
-          <p className="text-xs text-slate-500">
-            {category}
-            {region ? ` — ${region}` : ""}
-          </p>
-        </td>
-        <td className="px-4 py-3">
-          <ClassificationBadge classification={report.classification} />
-        </td>
-        <td className="px-4 py-3 text-center font-bold text-slate-900">
-          {report.victimCount}
-        </td>
-        <td className="px-4 py-3 whitespace-nowrap font-medium text-slate-700">
-          {formatDistanceKm(report.distances?.basarnas ?? null)}
-        </td>
-        <td className="px-4 py-3">
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-basarnasblue px-3 py-1.5 text-xs font-bold text-white hover:bg-basarnasblue-dark"
-          >
-            <MapPin className="h-3.5 w-3.5" /> Google Maps
-            <ExternalLink className="h-3 w-3 opacity-70" />
-          </a>
-        </td>
-      </tr>
-    );
-  }
-
-  // Kartu untuk layar HP
   return (
     <div className="p-4">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate font-bold text-slate-900">{name}</p>
+          <p className="font-mono text-xs font-bold text-basarnasblue">
+            {report.ticketId ?? "-"}
+          </p>
+          <p className="mt-0.5 truncate font-bold text-slate-900">{reporterName(report)}</p>
           <p className="truncate text-xs text-slate-500">
-            {category}
-            {region ? ` — ${region}` : ""}
+            {REPORTER_CATEGORIES[report.reporterCategory] || "-"}
+            {reporterRegion(report) ? ` — ${reporterRegion(report)}` : ""}
           </p>
         </div>
-        <ClassificationBadge classification={report.classification} />
+        <div className="flex flex-col items-end gap-1.5">
+          <ClassificationBadge classification={report.classification} />
+          <span
+            className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_STYLES[status]}`}
+          >
+            {STATUS_LABELS[status] ?? status}
+          </span>
+        </div>
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
@@ -530,16 +633,49 @@ function ReportRow({ report, variant }) {
         </div>
       </dl>
 
-      <a
-        href={mapsUrl}
-        target="_blank"
-        rel="noreferrer"
-        className={`mt-3 flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold text-white
-          ${fire ? "bg-red-600 hover:bg-red-700" : "bg-basarnasblue hover:bg-basarnasblue-dark"}`}
-      >
-        <MapPin className="h-4 w-4" /> Lihat TKP di Google Maps
-        <ExternalLink className="h-3.5 w-3.5 opacity-70" />
-      </a>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <select
+          value={status}
+          onChange={(e) => onStatusChange(e.target.value)}
+          aria-label={`Status ${report.ticketId ?? ""}`}
+          className={`h-11 flex-1 rounded-xl border-2 px-3 text-sm font-bold outline-none
+            ${status === "baru" ? "border-orange-300" : status === "diproses" ? "border-basarnasblue/30" : "border-emerald-300"}`}
+        >
+          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mt-2 flex gap-2">
+        {report.photoUrl && (
+          <a
+            href={report.photoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex h-11 items-center gap-2 rounded-xl border-2 border-slate-200 px-4 text-sm font-semibold text-slate-700"
+          >
+            <img
+              src={report.photoUrl}
+              alt="Foto TKP"
+              className="h-7 w-7 rounded-md object-cover"
+            />
+            Foto TKP
+          </a>
+        )}
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-bold text-white
+            ${fire ? "bg-red-600 hover:bg-red-700" : "bg-basarnasblue hover:bg-basarnasblue-dark"}`}
+        >
+          <MapPin className="h-4 w-4" /> Lihat TKP di Google Maps
+          <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+        </a>
+      </div>
     </div>
   );
 }

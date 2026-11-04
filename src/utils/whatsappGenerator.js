@@ -53,6 +53,7 @@ export function buildReportMessage(report, distances) {
 
   const lines = [
     "LAPORAN AWAL KEJADIAN SAR",
+    `No. Tiket: ${report.ticketId || "-"}`,
     "",
     "IDENTITAS PELAPOR",
     `Nama: ${reporterName(report)}`,
@@ -82,10 +83,13 @@ export function buildReportMessage(report, distances) {
     "DETAIL KEJADIAN",
     report.detail?.trim() || "-",
     "",
-    "VOICE NOTE",
+    "LAMPIRAN",
     report.voiceNoteUrl
-      ? `Tersedia — rekaman suara durasi ${formatDuration(report.voiceNoteDuration)}. Berkas voice note akan dilampirkan melalui sistem BASARNAS (integrasi backend).`
-      : "Tidak tersedia.",
+      ? `Voice note tersedia — durasi ${formatDuration(report.voiceNoteDuration)}. Berkas voice note akan dilampirkan melalui sistem BASARNAS (integrasi backend).`
+      : "Voice note tidak tersedia.",
+    report.photoUrl
+      ? "Foto TKP tersedia (akan dilampirkan melalui sistem BASARNAS — integrasi backend)."
+      : "Foto TKP tidak diunggah.",
   );
 
   return lines.join("\n");
@@ -139,9 +143,24 @@ export function buildSummaryText(report) {
         ? report.potentialSarName
         : report.kampungRescueName;
   return [
+    `Tiket: ${report.ticketId || "-"}`,
     `Pelapor: ${name || "-"} (${category})`,
     `Klasifikasi: ${getIncidentLabel(report.classification) || "-"}`,
     `Jumlah korban: ${report.victimCount}`,
     `Koordinat TKP: ${report.latitude}, ${report.longitude}`,
   ].join("\n");
+}
+
+/**
+ * Escape teks agar aman disuntik ke innerHTML (SweetAlert2).
+ * @param {string} text
+ * @returns {string}
+ */
+export function escapeHtml(text) {
+  return String(text ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

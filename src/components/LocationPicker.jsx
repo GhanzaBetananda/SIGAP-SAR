@@ -1,15 +1,21 @@
 import { useCallback, useRef } from "react";
 import Swal from "sweetalert2";
 import { useReport } from "../context/useReport.js";
-import { Crosshair, Loader2, MapPin } from "lucide-react";
+import { useAuth } from "../context/AuthProvider.jsx";
+import { detectTkpDistrict } from "../utils/geo.js";
+import { districtLabel, matchDistrict } from "../data/districts.js";
+import { Crosshair, Loader2, MapPin, TriangleAlert } from "lucide-react";
 
 /**
  * Pengambilan koordinat TKP melalui Browser Geolocation API.
- * Menampilkan latitude, longitude, status, akurasi, dan tombol
- * ambil/perbarui lokasi.
+ * Menampilkan latitude, longitude, status, akurasi, tombol
+ * ambil/perbarui lokasi, dan deteksi kecamatan TKP otomatis
+ * (reverse geocoding) termasuk peringatan bila TKP berada di
+ * kecamatan/desa yang berbeda dari wilayah akun pelapor.
  */
 export default function LocationPicker({ errors = {} }) {
   const { report, updateReport } = useReport();
+  const { session } = useAuth();
   const lastPositionRef = useRef(0);
 
   const captureLocation = useCallback(() => {
@@ -31,16 +37,22 @@ export default function LocationPicker({ errors = {} }) {
     if (lastPositionRef.current && Date.now() - lastPositionRef.current < 1000) return;
     lastPositionRef.current = Date.now();
 
-    updateReport({ locationStatus: "loading", locationError: "" });
+    updateReport({ locationStatus: "loading", locationError: "", tkpDistrict: "" });
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        const latitude = Number(position.coords.latitude.toFixed(6));
+        const longitude = Number(position.coords.longitude.toFixed(6));
         updateReport({
-          latitude: Number(position.coords.latitude.toFixed(6)),
-          longitude: Number(position.coords.longitude.toFixed(6)),
+          latitude,
+          longitude,
           locationAccuracy: position.coords.accuracy,
           locationStatus: "ready",
           locationError: "",
+        });
+        // Deteksi kecamatan TKP di latar belakang (gagal = abaikan)
+        detectTkpDistrict(latitude, longitude).then((district) => {
+          if (district) updateReport({ tkpDistrict: district });
         });
       },
       (error) => {
@@ -64,6 +76,11 @@ export default function LocationPicker({ errors = {} }) {
 
   const isLoading = report.locationStatus === "loading";
   const isReady = report.locationStatus === "ready";
+
+  // Peringatan bila TKP terdeteksi di luar wilayah pelapor (Potensi SAR/Kampung Rescue)
+  const accountDistrict = session?.reporterCategory !== "pegawai_basarnas" ? matchDistrict(session?.region ?? "") : "";
+  const regionMismatch =
+    isReady && Boolean(accountDistrict) && Boolean(report.tkpDistrict) && report.tkpDistrict !== accountDistrict;
 
   return (
     <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
@@ -102,6 +119,20 @@ export default function LocationPicker({ errors = {} }) {
           <dd className="font-mono">{isReady ? report.longitude : "-"}</dd>
         </div>
         <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
+          <dt className="font-medium">Kecamatan TKP</dt>
+          <dd className="text-right">
+            {isLoading && <span className="text-slate-400">Diperiksa…</span>}
+            {!isLoading && report.tkpDistrict && (
+              <span className="font-bold text-slate-800">{districtLabel(report.tkpDistrict)}</span>
+            )}
+            {!isLoading && !report.tkpDistrict && (
+              <span className={isReady ? "text-slate-400" : ""}>
+                {isReady ? "Tidak terdeteksi" : "-"}
+              </span>
+            )}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
           <dt className="font-medium">Status</dt>
           <dd className="text-right">
             {isLoading && (
@@ -119,6 +150,15 @@ export default function LocationPicker({ errors = {} }) {
           </dd>
         </div>
       </dl>
+
+      {regionMismatch && (
+        <p className="mt-3 flex items-start gap-2 rounded-xl border-2 border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-800">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          Wilayah akun Anda: {districtLabel(accountDistrict)}. TKP terdeteksi di{" "}
+          {districtLabel(report.tkpDistrict)} — pastikan lokasi kejadian sudah benar
+          sebelum melapor.
+        </p>
+      )}
 
       {isReady && (
         <a

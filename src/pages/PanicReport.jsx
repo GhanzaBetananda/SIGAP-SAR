@@ -9,11 +9,14 @@ import IncidentForm from "../components/IncidentForm.jsx";
 import LocationPicker from "../components/LocationPicker.jsx";
 import { useReport } from "../context/useReport.js";
 import { useAuth } from "../context/AuthProvider.jsx";
+import { readSimulatedReports } from "../context/reportState.js";
+import PhotoPicker from "../components/PhotoPicker.jsx";
 import { validatePanicReport, validateInitialReport } from "../utils/validation.js";
 import { calculateDistances } from "../utils/distanceCalculator.js";
-import { getWhatsAppTargets, buildSummaryText, REPORTER_CATEGORIES } from "../utils/whatsappGenerator.js";
+import { getWhatsAppTargets, buildSummaryText, REPORTER_CATEGORIES, escapeHtml } from "../utils/whatsappGenerator.js";
 import { isFireIncident } from "../data/incidentTypes.js";
 import { Lock, Send, UserRound } from "lucide-react";
+import { generateTicketId } from "../utils/tickets.js";
 
 export default function PanicReport() {
   const { session } = useAuth();
@@ -67,7 +70,7 @@ export default function PanicReport() {
     Swal.fire({
       icon: "question",
       title: "Kirim Laporan?",
-      html: `<pre style="text-align:left;white-space:pre-wrap;font-family:inherit" class="swal-summary">${buildSummaryText(report)}</pre>`,
+      html: `<pre style="text-align:left;white-space:pre-wrap;font-family:inherit" class="swal-summary">${escapeHtml(buildSummaryText(report))}</pre>`,
       showCancelButton: true,
       confirmButtonText: "Ya, Kirim Laporan",
       cancelButtonText: "Periksa Kembali",
@@ -76,25 +79,27 @@ export default function PanicReport() {
       if (!result.isConfirmed) return;
 
       // 3. Simulasi penyimpanan laporan pada frontend (state lokal + localStorage)
+      // 3. Simulasi penyimpanan laporan (id tiket + status awal + pelapor)
+      const ticketId = generateTicketId(readSimulatedReports());
       saveReportLocally({
         ...report,
+        ticketId,
+        status: "baru",
+        reporterUsername: session?.username ?? "",
         distances,
         submittedAt: new Date().toISOString(),
       });
-      updateReport({ submittedAt: new Date().toISOString() });
+      updateReport({ ticketId, submittedAt: new Date().toISOString() });
 
       // 4. Siapkan tautan WhatsApp sesuai klasifikasi kejadian
       const targets = getWhatsAppTargets(report, distances);
       setWaTargets(targets);
       setErrors({});
 
-      const targetList = targets
-        .map((target) => `<li style="text-align:left">${target.label}</li>`)
-        .join("");
       Swal.fire({
         icon: "success",
         title: "Laporan Berhasil Disiapkan",
-        html: `<div style="text-align:left"><p>Data laporan disimpan pada simulasi frontend.</p><p class="mt-2"><strong>Tautan WhatsApp siap dibuka:</strong></p><ul>${targetList}</ul><p class="mt-2" style="font-size:0.9em">Tekan tombol kirim secara manual di aplikasi WhatsApp.</p></div>`,
+        html: `<div style="text-align:left"><p>Nomor tiket laporan Anda: <strong>${escapeHtml(ticketId)}</strong> — catat nomor ini untuk mengecek status laporan.</p><p class="mt-2"><strong>Tautan WhatsApp siap dibuka:</strong></p><ul>${targets.map((target) => `<li>${escapeHtml(target.label)}</li>`).join("")}</ul><p class="mt-2" style="font-size:0.9em">Tekan tombol kirim secara manual di aplikasi WhatsApp.</p></div>`,
         confirmButtonColor: "#ea580c",
         confirmButtonText: "Buka Distribusi WhatsApp",
       });
@@ -144,6 +149,9 @@ export default function PanicReport() {
 
         {/* Koordinat TKP via GPS */}
         <LocationPicker errors={errors} />
+
+        {/* Lampiran foto TKP (opsional) */}
+        <PhotoPicker />
 
         <VoiceRecorder errors={errors} />
 
