@@ -242,7 +242,7 @@ function AdminLogin({ agency, onSuccess }) {
 function AdminDashboard({ agency = "basarnas", onLogout }) {
   const isAgni = agency === "manggala_agni";
   const agencyTitle = isAgni ? "ADMIN MANGGALA AGNI" : "ADMIN SAT SET";
-  const agencyBadge = isAgni ? "MANGGALA AGNI — KEMHUB" : "PANEL INTERNAL BASARNAS";
+  const agencyBadge = isAgni ? "MANGGALA AGNI" : "PANEL INTERNAL BASARNAS";
   const agencyHint = isAgni
     ? "History Laporan Kebakaran (Diteruskan dari BASARNAS)"
     : "History Laporan Panic Button";
