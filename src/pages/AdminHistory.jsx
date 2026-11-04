@@ -48,7 +48,7 @@ const LOGOS_BASARNAS = [
 ];
 
 const LOGOS_MANGGALA = [
-  { src: "/kemenhut.jpg", alt: "Logo Kementerian Perhubungan" },
+  { src: "/kemenhut.jpg", alt: "Logo Kementerian Kehutanan" },
   { src: "/manggala.png", alt: "Logo Manggala Agni" },
 ];
 
@@ -179,7 +179,7 @@ function AdminLogin({ agency, onSuccess }) {
             Panel internal — {AGENCY_LABELS[agency] || agency}
             <br />
             {agency === "manggala_agni"
-              ? "Manggala Agni, Kementerian Perhubungan"
+              ? "Manggala Agni, Kementerian Kehutanan"
               : "Badan SAR Nasional (BASARNAS)"}
           </p>
 
@@ -634,7 +634,7 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
           <span className="flex items-center gap-1.5 font-semibold text-primary">
             <ShieldCheck className="h-3.5 w-3.5" />
             {isAgni
-              ? "Panel Admin SAT SET — Manggala Agni, Kementerian Perhubungan"
+              ? "Panel Admin SAT SET — Manggala Agni, Kementerian Kehutanan"
               : "Panel Admin SAT SET — Basarnas Banyuwangi"}
           </span>
           <span className="text-slate-300">|</span>

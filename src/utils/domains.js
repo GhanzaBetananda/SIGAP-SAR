@@ -3,7 +3,7 @@
 // Satu : aplikasi pelapor (mis. sigapsar.vercel.app)
 // Dua  : panel admin BASARNAS — host berawalan "admin." atau
 //        dioverride via VITE_ADMIN_HOST.
-// Tiga : panel admin Manggala Agni (Kementerian Perhubungan) —
+// Tiga : panel admin Manggala Agni (Kementerian Kehutanan) —
 //        host = satsetmanggalaagni.vercel.app atau dioverride via
 //        VITE_MANGGALA_HOST. Proyek yang menyaji harus diberi
 //        env tersebut agar tidak tertukar dengan sisi lainnya.
