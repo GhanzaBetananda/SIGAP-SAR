@@ -179,7 +179,7 @@ function AdminLogin({ agency, onSuccess }) {
             Panel internal — {AGENCY_LABELS[agency] || agency}
             <br />
             {agency === "manggala_agni"
-              ? "Manggala Agni, Kementerian Kehutanan"
+              ? "Manggala Agni — Pasukan Penanggulangan Kebakaran Hutan dan Lahan, Ditjen Pengendalian Kebakaran Hutan dan Lahan, Kementerian Kehutanan"
               : "Badan SAR Nasional (BASARNAS)"}
           </p>
 
@@ -634,7 +634,7 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
           <span className="flex items-center gap-1.5 font-semibold text-primary">
             <ShieldCheck className="h-3.5 w-3.5" />
             {isAgni
-              ? "Panel Admin SAT SET — Manggala Agni, Kementerian Kehutanan"
+              ? "Panel Admin SAT SET — Manggala Agni, Ditjen Pengendalian Kebakaran Hutan dan Lahan, Kementerian Kehutanan"
               : "Panel Admin SAT SET — Basarnas Banyuwangi"}
           </span>
           <span className="text-slate-300">|</span>

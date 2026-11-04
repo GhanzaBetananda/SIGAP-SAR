@@ -2,7 +2,8 @@
 // LOGIN PANEL ADMIN (SIMULASI FRONTEND)
 // Mendukung dua instansi dengan akun terpisah:
 //   - BASARNAS        (Badan SAR Nasional)
-//   - MANGGALA AGNI   (Kementerian Kehutanan)
+//   - MANGGALA AGNI   (Pasukan Penanggulangan Karhutla, Ditjen Pengendalian
+//        Kebakaran Hutan dan Lahan, Kementerian Kehutanan)
 // Identitas instansi disimpan dalam sesi agar panel tampil
 // sesuai agency domainnya.
 //
