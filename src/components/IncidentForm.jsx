@@ -43,7 +43,7 @@ export default function IncidentForm({ errors = {} }) {
         {/* Kategori induk: Bencana Alam — pilih satu sub klasifikasi */}
         <div
           className={`grid gap-2.5 rounded-xl border-2 p-4 sm:col-span-2
-            ${isNaturalDisasterFamily ? "border-orange-500 bg-orange-50" : "border-slate-200 bg-white"}`}
+            ${isNaturalDisasterFamily ? "border-fireorange bg-fireorange/10" : "border-slate-200 bg-white"}`}
         >
           <p className="text-sm font-bold text-slate-900">
             Bencana Alam
@@ -65,7 +65,7 @@ export default function IncidentForm({ errors = {} }) {
                   aria-checked={active}
                   onClick={() => handleClassification(sub.value)}
                   className={`flex items-center gap-3 rounded-lg border-2 p-3 text-left font-semibold transition-all active:scale-[0.97]
-                    ${active ? "border-orange-500 bg-orange-500 text-white" : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"}`}
+                    ${active ? "border-fireorange bg-fireorange text-white" : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"}`}
                 >
                   <SubIcon className="h-5 w-5 shrink-0" />
                   {sub.label}
@@ -93,7 +93,7 @@ export default function IncidentForm({ errors = {} }) {
           value={report.victimCount}
           onChange={(e) => handleVictimCount(e.target.value)}
           placeholder="Contoh: 3"
-          className={`h-14 w-full rounded-xl border-2 bg-white px-4 text-base outline-none focus:border-basarnasblue
+          className={`h-14 w-full rounded-xl border-2 bg-white px-4 text-base outline-none focus:border-primary
             ${errors.victimCount ? "border-red-400" : "border-slate-300"}`}
         />
         {errors.victimCount && (
@@ -112,7 +112,7 @@ function ClassificationChip({ option, active, onSelect }) {
       aria-checked={active}
       onClick={() => onSelect(option.value)}
       className={`rounded-xl border-2 p-4 text-left font-semibold transition-all active:scale-[0.98]
-        ${active ? "border-orange-500 bg-orange-50 text-orange-800" : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"}`}
+        ${active ? "border-fireorange bg-fireorange/10 text-fireorange-dark" : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"}`}
     >
       {option.label}
     </button>

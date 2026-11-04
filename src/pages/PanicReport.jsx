@@ -114,7 +114,7 @@ export default function PanicReport() {
         {/* Identitas pelapor — otomatis dari data akun yang login */}
         <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="mb-1 flex items-center gap-2 text-lg font-bold text-slate-900">
-            <UserRound className="h-5 w-5 text-basarnasblue" />
+            <UserRound className="h-5 w-5 text-primary" />
             Identitas Pelapor
           </h2>
           <p className="mb-3 text-sm text-slate-500">
@@ -165,7 +165,7 @@ export default function PanicReport() {
             value={report.detail}
             onChange={(e) => updateReport({ detail: e.target.value })}
             placeholder="Tuliskan kronologi kejadian, kondisi korban, dan informasi tambahan..."
-            className={`w-full resize-y rounded-xl border-2 bg-white px-4 py-3 text-base outline-none focus:border-basarnasblue
+            className={`w-full resize-y rounded-xl border-2 bg-white px-4 py-3 text-base outline-none focus:border-primary
               ${errors.detail ? "border-red-400" : "border-slate-300"}`}
           />
           {errors.detail && (
@@ -185,7 +185,7 @@ export default function PanicReport() {
               size="md"
             />
             <p className="flex items-start gap-2 text-center text-xs leading-relaxed text-slate-500">
-              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-basarnasblue" />
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               Setelah ditekan, laporan disimpan pada simulasi frontend lalu tautan
               WhatsApp disiapkan sesuai klasifikasi kejadian
               {fire ? " (BASARNAS + Manggala Agni)" : " (BASARNAS)"}.
@@ -195,9 +195,9 @@ export default function PanicReport() {
 
         {/* Distribusi WhatsApp muncul setelah submit */}
         {report.submittedAt && waTargets.length > 0 && (
-          <section className="rounded-2xl border border-basarnasblue/15 bg-basarnasblue p-5 text-white shadow-sm sm:p-6">
+          <section className="rounded-2xl border border-primary/15 bg-primary p-5 text-white shadow-sm sm:p-6">
             <h2 className="mb-1 flex items-center gap-2 text-lg font-bold">
-              <Send className="h-5 w-5 text-sarorange" />
+              <Send className="h-5 w-5 text-fireorange" />
               Distribusi Laporan WhatsApp
             </h2>
             <p className="mb-4 text-sm text-white/80">
@@ -212,7 +212,7 @@ export default function PanicReport() {
                   href={target.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex min-h-[56px] items-center justify-between gap-3 rounded-xl bg-orange-500 px-5 py-4 font-bold text-white transition-colors hover:bg-orange-600 active:scale-[0.97] active:bg-orange-600"
+                  className="flex min-h-[56px] items-center justify-between gap-3 rounded-xl bg-fireorange px-5 py-4 font-bold text-white transition-colors hover:bg-fireorange active:scale-[0.97] active:bg-fireorange"
                 >
                   <span>{target.label}</span>
                   <span className="hidden truncate font-mono text-xs opacity-80 sm:block">

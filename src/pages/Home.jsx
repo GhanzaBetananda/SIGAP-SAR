@@ -28,7 +28,7 @@ export default function Home() {
       <Stepper current={1} />
 
       <section className="mt-6 text-center">
-        <p className="mx-auto flex max-w-md items-start gap-2 rounded-xl border-2 border-orange-200 bg-orange-50 p-3 text-left text-xs text-orange-800">
+        <p className="mx-auto flex max-w-md items-start gap-2 rounded-xl border-2 border-fireorange/25 bg-fireorange/10 p-3 text-left text-xs text-fireorange-dark">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           Gunakan hanya pada kejadian darurat nyata. Seluruh informasi awal wajib diisi
           sebelum laporan dapat dikirim.
@@ -63,7 +63,7 @@ export default function Home() {
         </div>
 
         {report.submittedAt && (
-          <p className="mb-6 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
+          <p className="mb-6 rounded-xl bg-forestgreen/10 p-3 text-sm font-semibold text-forestgreen">
             {report.ticketId
               ? `Laporan tiket ${report.ticketId} telah disiapkan — lakukan kirim manual pada tautan WhatsApp.`
               : "Laporan terakhir telah disiapkan — kirim manual pada tautan WhatsApp."}
@@ -97,12 +97,12 @@ export default function Home() {
 
 function StepCard({ icon, title, items }) {  return (
     <div className="rounded-2xl bg-white p-5 text-left shadow-sm">
-      <span className="mb-3 inline-flex rounded-lg bg-basarnasblue p-2.5 text-white">{icon}</span>
+      <span className="mb-3 inline-flex rounded-lg bg-primary p-2.5 text-white">{icon}</span>
       <p className="font-bold text-slate-900">{title}</p>
       <ul className="mt-2 space-y-1 text-xs text-slate-500">
         {items.map((item) => (
           <li key={item} className="flex items-start gap-1.5">
-            <LifeBuoy className="mt-0.5 h-3 w-3 shrink-0 text-orange-500" />
+            <LifeBuoy className="mt-0.5 h-3 w-3 shrink-0 text-fireorange" />
             {item}
           </li>
         ))}

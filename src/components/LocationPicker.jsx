@@ -95,7 +95,7 @@ export default function LocationPicker({ errors = {} }) {
         onClick={captureLocation}
         disabled={isLoading}
         className={`flex h-14 w-full items-center justify-center gap-2 rounded-xl text-base font-bold text-white transition-all
-          ${isLoading ? "cursor-wait bg-slate-400" : "bg-basarnasblue hover:bg-basarnasblue-dark active:scale-[0.98] active:bg-basarnasblue-dark"}`}
+          ${isLoading ? "cursor-wait bg-slate-400" : "bg-primary hover:bg-primary-dark active:scale-[0.98] active:bg-primary-dark"}`}
       >
         {isLoading ? (
           <Loader2 className="h-5 w-5 animate-spin" />
@@ -136,10 +136,10 @@ export default function LocationPicker({ errors = {} }) {
           <dt className="font-medium">Status</dt>
           <dd className="text-right">
             {isLoading && (
-              <span className="font-semibold text-orange-600">Mengambil GPS…</span>
+              <span className="font-semibold text-fireorange">Mengambil GPS…</span>
             )}
             {isReady && (
-              <span className="font-semibold text-emerald-600">
+              <span className="font-semibold text-forestgreen">
                 Koordinat siap (±{Math.round(report.locationAccuracy ?? 0)} m)
               </span>
             )}
@@ -152,7 +152,7 @@ export default function LocationPicker({ errors = {} }) {
       </dl>
 
       {regionMismatch && (
-        <p className="mt-3 flex items-start gap-2 rounded-xl border-2 border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-800">
+        <p className="mt-3 flex items-start gap-2 rounded-xl border-2 border-fireorange/25 bg-fireorange/10 px-3 py-2.5 text-xs text-fireorange-dark">
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
           Wilayah akun Anda: {districtLabel(accountDistrict)}. TKP terdeteksi di{" "}
           {districtLabel(report.tkpDistrict)} — pastikan lokasi kejadian sudah benar
@@ -165,7 +165,7 @@ export default function LocationPicker({ errors = {} }) {
           href={`https://www.google.com/maps?q=${report.latitude},${report.longitude}`}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 flex h-12 items-center justify-center gap-2 rounded-xl border-2 border-slate-200 px-4 text-sm font-semibold text-slate-700 active:scale-[0.98] hover:border-orange-400 hover:text-orange-700"
+          className="mt-3 flex h-12 items-center justify-center gap-2 rounded-xl border-2 border-slate-200 px-4 text-sm font-semibold text-slate-700 active:scale-[0.98] hover:border-fireorange/40 hover:text-fireorange-dark"
         >
           <MapPin className="h-4 w-4" />
           Cek posisi di Google Maps

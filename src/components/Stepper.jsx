@@ -18,20 +18,20 @@ export default function Stepper({ current }) {
           <li key={step.id} className="flex flex-1 flex-col items-center gap-1 text-center">
             <div className="flex w-full items-center">
               <span
-                className={`h-0.5 w-full ${step.id === 1 ? "opacity-0" : isDone || isActive ? "bg-orange-500" : "bg-slate-300"}`}
+                className={`h-0.5 w-full ${step.id === 1 ? "opacity-0" : isDone || isActive ? "bg-fireorange" : "bg-slate-300"}`}
               />
               <span
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors
-                  ${isDone ? "border-orange-500 bg-orange-500 text-white" : isActive ? "border-orange-500 bg-white text-orange-600" : "border-slate-300 bg-white text-slate-400"}`}
+                  ${isDone ? "border-fireorange bg-fireorange text-white" : isActive ? "border-fireorange bg-white text-fireorange" : "border-slate-300 bg-white text-slate-400"}`}
               >
                 {isDone ? <Check className="h-4 w-4" /> : step.id}
               </span>
               <span
-                className={`h-0.5 w-full ${step.id === STEPS.length ? "opacity-0" : step.id < current ? "bg-orange-500" : "bg-slate-300"}`}
+                className={`h-0.5 w-full ${step.id === STEPS.length ? "opacity-0" : step.id < current ? "bg-fireorange" : "bg-slate-300"}`}
               />
             </div>
             <span
-              className={`text-[11px] font-semibold sm:text-xs ${isActive || isDone ? "text-orange-700" : "text-slate-400"}`}
+              className={`text-[11px] font-semibold sm:text-xs ${isActive || isDone ? "text-fireorange-dark" : "text-slate-400"}`}
             >
               {step.label}
             </span>

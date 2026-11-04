@@ -29,7 +29,7 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-50">
+    <div className="flex min-h-dvh flex-col bg-lightbg">
       <header className="safe-area-top sticky top-0 z-30 border-b border-slate-200/70 bg-white/95 shadow-sm shadow-slate-900/5 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 py-3.5 sm:gap-3 sm:px-4">
           {/* Tombol kembali saat sedang berada di alur pelaporan */}
@@ -57,7 +57,7 @@ export default function Layout({ children }) {
           </span>
 
           <div className="min-w-0 flex-1 leading-tight">
-            <p className="text-sm font-extrabold tracking-wide text-basarnasblue sm:text-base">
+            <p className="text-sm font-extrabold tracking-wide text-primary sm:text-base">
               SAT SET
             </p>
             <p className="text-[10px] leading-snug text-slate-500 sm:text-[11px]">
@@ -69,15 +69,15 @@ export default function Layout({ children }) {
           <span
             className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold tracking-widest sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[10px]
               ${statusAlert === "SIAGA"
-                ? "border-orange-300 bg-orange-50 text-orange-700"
-                : "border-basarnasblue/15 bg-basarnasblue/5 text-basarnasblue"}`}
+                ? "border-fireorange/30 bg-fireorange/10 text-fireorange-dark"
+                : "border-primary/15 bg-primary/5 text-primary"}`}
           >
             <span className="relative flex h-2 w-2">
               {statusAlert === "SIAGA" && (
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sarorange opacity-75" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-fireorange opacity-75" />
               )}
               <span
-                className={`relative inline-flex h-2 w-2 rounded-full ${statusAlert === "SIAGA" ? "bg-sarorange" : "bg-basarnasblue"}`}
+                className={`relative inline-flex h-2 w-2 rounded-full ${statusAlert === "SIAGA" ? "bg-fireorange" : "bg-primary"}`}
               />
             </span>
             {statusAlert}
@@ -97,7 +97,7 @@ export default function Layout({ children }) {
         </div>
 
         {/* Garis aksen biru–oranye khas BASARNAS */}
-        <div className="h-1 bg-gradient-to-r from-basarnasblue via-sarorange to-basarnasblue" />
+        <div className="h-1 bg-gradient-to-r from-primary via-fireorange to-goldyellow" />
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-6 pt-4">{children}</main>
@@ -118,7 +118,7 @@ export default function Layout({ children }) {
           <p className="mt-1 text-[11px] text-slate-400">
             <a
               href={adminUrl()}
-              className="underline-offset-2 hover:text-basarnasblue hover:underline"
+              className="underline-offset-2 hover:text-primary hover:underline"
             >
               Panel Admin
             </a>{" "}

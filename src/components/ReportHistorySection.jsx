@@ -18,9 +18,9 @@ export const STATUS_LABELS = {
 };
 
 export const STATUS_STYLES = {
-  baru: "bg-orange-50 text-orange-700",
-  diproses: "bg-basarnasblue/10 text-basarnasblue",
-  selesai: "bg-emerald-50 text-emerald-700",
+  baru: "bg-fireorange/10 text-fireorange-dark",
+  diproses: "bg-primary/10 text-primary",
+  selesai: "bg-forestgreen/10 text-forestgreen",
 };
 
 function formatDateTime(iso) {
@@ -83,7 +83,7 @@ export function ReportHistorySection({ username }) {
               className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-3"
             >
               <div className="min-w-0">
-                <p className="font-mono text-sm font-bold text-basarnasblue">
+                <p className="font-mono text-sm font-bold text-primary">
                   {report.ticketId ?? "-"}
                 </p>
                 <p className="truncate text-xs text-slate-500">

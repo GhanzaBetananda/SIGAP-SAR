@@ -151,7 +151,7 @@ export default function VoiceRecorder({ errors = {} }) {
 
       {report.voiceNoteUrl && (
         <div className="mt-4 rounded-xl border-2 border-slate-200 bg-slate-50 p-4">
-          <p className="mb-2 text-sm font-semibold text-emerald-700">
+          <p className="mb-2 text-sm font-semibold text-forestgreen">
             Rekaman tersimpan (durasi {formatDuration(report.voiceNoteDuration)})
           </p>
           {/* Kontainer audio agar lebih mudah disentuh di smartphone */}
@@ -162,14 +162,14 @@ export default function VoiceRecorder({ errors = {} }) {
               href={report.voiceNoteUrl}
               target="_blank"
               rel="noreferrer"
-              className="flex h-12 items-center gap-2 rounded-lg bg-basarnasblue px-4 text-sm font-semibold text-white hover:bg-basarnasblue-dark active:scale-95 active:bg-basarnasblue-dark"
+              className="flex h-12 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark active:scale-95 active:bg-primary-dark"
             >
               <Play className="h-4 w-4" /> Putar di Tab Baru
             </a>
             <button
               type="button"
               onClick={startRecording}
-              className="flex h-12 items-center gap-2 rounded-lg border-2 border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-700 active:scale-95"
+              className="flex h-12 items-center gap-2 rounded-lg border-2 border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:border-fireorange/40 hover:text-fireorange-dark active:scale-95"
             >
               <RotateCcw className="h-4 w-4" /> Rekam Ulang
             </button>

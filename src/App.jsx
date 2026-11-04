@@ -5,29 +5,37 @@ import Home from "./pages/Home.jsx";
 import PanicReport from "./pages/PanicReport.jsx";
 import Login from "./pages/Login.jsx";
 import AdminHistory from "./pages/AdminHistory.jsx";
-import { isAdminDomain } from "./utils/domains.js";
+import { isAdminDomain, isManggalaDomain } from "./utils/domains.js";
 
 /**
- * Satu bundle Vite, dua sisi:
- * - Admin: host "admin.*" (atau VITE_ADMIN_HOST) -> Panel Admin.
- * - Publik : seluruh halaman pelapor terkunci sampai pelapor login.
+ * Satu kode, tiga wajah (opsi deploy: tiap panel identik dengan
+ * project Vercel sendiri + env var):
+ * - Domain publik  : SIGAPSAR (sigapsar.vercel.app)
+ * - Admin BASARNAS : "admin.*" atau VITE_ADMIN_HOST
+ * - Admin Manggala Agni : satsetmanggalaagni.vercel.app / VITE_MANGGALA_HOST
  */
 export default function App() {
   return (
     <ReportProvider>
       <AuthProvider>
-        {isAdminDomain() ? <AdminRoutes /> : <PublicRoutes />}
+        {isAdminDomain() ? (
+          <AdminRoutes agency="basarnas" />
+        ) : isManggalaDomain() ? (
+          <AdminRoutes agency="manggala_agni" />
+        ) : (
+          <PublicRoutes />
+        )}
       </AuthProvider>
     </ReportProvider>
   );
 }
 
 /** Rute panel admin (domain admin terpisah). */
-function AdminRoutes() {
+function AdminRoutes({ agency }) {
   return (
     <Routes>
-      <Route path="/admin" element={<AdminHistory />} />
-      <Route path="/admin/*" element={<AdminHistory />} />
+      <Route path="/admin" element={<AdminHistory agency={agency} />} />
+      <Route path="/admin/*" element={<AdminHistory agency={agency} />} />
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>
   );

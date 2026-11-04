@@ -29,7 +29,7 @@ export default function SearchSelect({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
-        className={`flex h-14 w-full items-center justify-between gap-2 rounded-xl border-2 bg-white px-4 text-left text-base ${disabled ? "cursor-not-allowed border-slate-200 text-slate-400" : value ? "border-basarnasblue" : "border-slate-300 hover:border-slate-500"}`}
+        className={`flex h-14 w-full items-center justify-between gap-2 rounded-xl border-2 bg-white px-4 text-left text-base ${disabled ? "cursor-not-allowed border-slate-200 text-slate-400" : value ? "border-primary" : "border-slate-300 hover:border-slate-500"}`}
       >
         <span className="truncate">
           {disabled
@@ -66,7 +66,7 @@ export default function SearchSelect({
                     setOpen(false);
                     setQuery("");
                   }}
-                  className={`block w-full px-4 py-3 text-left text-sm hover:bg-orange-50 ${value === name ? "bg-orange-100 font-semibold text-orange-800" : "text-slate-700"}`}
+                  className={`block w-full px-4 py-3 text-left text-sm hover:bg-fireorange/10 ${value === name ? "bg-fireorange/15 font-semibold text-fireorange-dark" : "text-slate-700"}`}
                 >
                   {name}
                 </button>

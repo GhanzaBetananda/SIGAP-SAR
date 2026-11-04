@@ -57,7 +57,7 @@ export default function DistanceInfo({ report, distances }) {
 
 function DistanceCard({ icon, officeName, value, accent }) {
   const accentClasses = {
-    orange: "bg-orange-100 text-orange-700",
+    orange: "bg-fireorange/15 text-fireorange-dark",
     red: "bg-red-100 text-red-700",
     slate: "bg-slate-100 text-slate-700",
   };

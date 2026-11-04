@@ -32,15 +32,30 @@ import { getIncidentLabel, isFireIncident } from "../data/incidentTypes.js";
 import { districtLabel } from "../data/districts.js";
 import { REPORTER_CATEGORIES, reporterName } from "../utils/whatsappGenerator.js";
 import { formatDistanceKm } from "../utils/distanceCalculator.js";
-import { publicUrl } from "../utils/domains.js";
-import { adminLogout, isAdminAuthenticated } from "../config/adminAuth.js";
+import { publicUrl, manggalaUrl } from "../utils/domains.js";
+import {
+  adminLogin,
+  adminLogout,
+  getAdminAgency,
+  AGENCY_LABELS,
+} from "../config/adminAuth.js";
 import { STATUS_LABELS, STATUS_STYLES } from "../components/ReportHistorySection.jsx";
 
-const LOGOS = [
+const LOGOS_BASARNAS = [
   { src: "/456.png", alt: "Logo 456" },
   { src: "/472.png", alt: "Logo 472" },
   { src: "/BASARNAS.png", alt: "Logo BASARNAS" },
 ];
+
+const LOGOS_MANGGALA = [
+  { src: "/kemenhut.jpg", alt: "Logo Kementerian Perhubungan" },
+  { src: "/manggala.png", alt: "Logo Manggala Agni" },
+];
+
+/** Set logo sesuai instansi domain. */
+function logoSet(agency) {
+  return agency === "manggala_agni" ? LOGOS_MANGGALA : LOGOS_BASARNAS;
+}
 
 const FIRE = "fire";
 const NON_FIRE = "non_fire";
@@ -95,26 +110,45 @@ function statusDistribusi(report) {
 
 /**
  * Gerbang admin: halaman login ditampilkan selama belum terautentikasi.
+ * Prop agency mengikuti domain — sesi tab yang tertancap instansi
+ * berbeda dianggap belum login agar tidak tertukar antarinstansi.
  */
-export default function AdminHistory() {
-  const [authenticated, setAuthenticated] = useState(() => isAdminAuthenticated());
-  if (!authenticated) {
-    return <AdminLogin onSuccess={() => setAuthenticated(true)} />;
+export default function AdminHistory({ agency = "basarnas" }) {
+  const [agencySession, setAgencySession] = useState(() => getAdminAgency());
+
+  useEffect(() => {
+    const active = getAdminAgency();
+    if (active && active !== agency) adminLogout();
+  }, [agency]);
+
+  if (!agencySession || agencySession !== agency) {
+    return (
+      <AdminLogin
+        agency={agency}
+        onSuccess={() => setAgencySession(getAdminAgency())}
+      />
+    );
   }
-  return <AdminDashboard onLogout={() => setAuthenticated(false)} />;
+  return (
+    <AdminDashboard
+      agency={agency}
+      onLogout={() => setAgencySession(null)}
+    />
+  );
 }
 
 /**
- * Halaman login khusus panel admin.
+ * Halaman login khusus panel admin — instansi sasaran ditulis jelas.
  */
-function AdminLogin({ onSuccess }) {
+function AdminLogin({ agency, onSuccess }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   function handleSubmit(event) {
     event.preventDefault();
-    if (adminLogin(username, password)) {
+    const loggedAgency = adminLogin(username, password, agency);
+    if (loggedAgency) {
       setError("");
       onSuccess();
     } else {
@@ -123,12 +157,12 @@ function AdminLogin({ onSuccess }) {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-50">
-      <div className="h-1 bg-gradient-to-r from-basarnasblue via-basarnasblue to-sarorange" />
+    <div className="flex min-h-dvh flex-col bg-lightbg">
+      <div className="h-1 bg-gradient-to-r from-primary via-goldyellow to-fireorange" />
       <div className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-sm rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex items-center justify-center gap-1.5">
-            {LOGOS.map((logo) => (
+            {logoSet(agency).map((logo) => (
               <img
                 key={logo.src}
                 src={logo.src}
@@ -138,11 +172,15 @@ function AdminLogin({ onSuccess }) {
             ))}
           </div>
 
-          <h1 className="mt-4 text-center text-lg font-extrabold tracking-wide text-basarnasblue">
-            ADMIN BASARNAS
+          <h1 className="mt-4 text-center text-lg font-extrabold tracking-wide text-primary">
+            ADMIN SAT SET
           </h1>
-          <p className="mt-1 text-center text-xs text-slate-500">
-            Panel internal — masuk dengan akun petugas
+          <p className="mt-1 text-center text-xs leading-snug text-slate-500">
+            Panel internal — {AGENCY_LABELS[agency] || agency}
+            <br />
+            {agency === "manggala_agni"
+              ? "Manggala Agni, Kementerian Perhubungan"
+              : "Badan SAR Nasional (BASARNAS)"}
           </p>
 
           <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
@@ -158,7 +196,7 @@ function AdminLogin({ onSuccess }) {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Username"
                 autoFocus
-                className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-4 text-base outline-none focus:border-basarnasblue"
+                className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-4 text-base outline-none focus:border-primary"
               />
             </div>
             <div>
@@ -172,7 +210,7 @@ function AdminLogin({ onSuccess }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-4 text-base outline-none focus:border-basarnasblue"
+                className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-4 text-base outline-none focus:border-primary"
               />
             </div>
 
@@ -185,7 +223,7 @@ function AdminLogin({ onSuccess }) {
             <button
               type="submit"
               disabled={!username || !password}
-              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-basarnasblue text-base font-bold text-white transition-all hover:bg-basarnasblue-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-white transition-all hover:bg-primary-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ShieldCheck className="h-5 w-5" />
               Masuk Panel Admin
@@ -195,13 +233,19 @@ function AdminLogin({ onSuccess }) {
       </div>
 
       <footer className="border-t border-slate-200/70 bg-white py-4 text-center text-xs text-slate-500">
-        ADMIN BASARNAS — Akses terbatas bagi petugas berwenang
+        ADMIN SAT SET — Akses terbatas bagi petugas berwenang ({AGENCY_LABELS[agency]})
       </footer>
     </div>
   );
 }
 
-function AdminDashboard({ onLogout }) {
+function AdminDashboard({ agency = "basarnas", onLogout }) {
+  const isAgni = agency === "manggala_agni";
+  const agencyTitle = isAgni ? "ADMIN MANGGALA AGNI" : "ADMIN SAT SET";
+  const agencyBadge = isAgni ? "MANGGALA AGNI — KEMHUB" : "PANEL INTERNAL BASARNAS";
+  const agencyHint = isAgni
+    ? "History Laporan Kebakaran (Diteruskan dari BASARNAS)"
+    : "History Laporan Panic Button";
   const [reports, setReports] = useState([]);
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -243,10 +287,18 @@ function AdminDashboard({ onLogout }) {
     return () => clearInterval(interval);
   }, [loadReports]);
 
-  const filtered = reports.filter((report) => {
+  // Panel Manggala Agni hanya menerima laporan kebakaran (sasiran distribusi)
+  const scopedReports = isAgni
+    ? reports.filter((report) => isFireIncident(report.classification))
+    : reports;
+
+  const filtered = scopedReports.filter((report) => {
     const fire = isFireIncident(report.classification);
     if (filter === FIRE && !fire) return false;
     if (filter === NON_FIRE && fire) return false;
+    if (filter === "baru" && (report.status ?? "baru") !== "baru") return false;
+    if (filter === "diproses" && (report.status ?? "baru") !== "diproses") return false;
+    if (filter === "selesai" && (report.status ?? "baru") !== "selesai") return false;
 
     const q = query.trim().toLowerCase();
     if (!q) return true;
@@ -263,25 +315,34 @@ function AdminDashboard({ onLogout }) {
   });
 
   const stats = {
-    total: reports.length,
-    fire: reports.filter((r) => isFireIncident(r.classification)).length,
-    nonFire: reports.filter((r) => !isFireIncident(r.classification)).length,
-    victims: reports.reduce((sum, r) => sum + (Number(r.victimCount) || 0), 0),
+    total: scopedReports.length,
+    fire: scopedReports.filter((r) => isFireIncident(r.classification)).length,
+    nonFire: scopedReports.filter((r) => !isFireIncident(r.classification)).length,
+    victims: scopedReports.reduce((sum, r) => sum + (Number(r.victimCount) || 0), 0),
+    diproses: scopedReports.filter((r) => (r.status ?? "baru") === "diproses").length,
+    selesai: scopedReports.filter((r) => (r.status ?? "baru") === "selesai").length,
   };
 
-  const FILTERS = [
-    { value: "all", label: "Semua", count: stats.total },
-    { value: FIRE, label: "Kebakaran", count: stats.fire },
-    { value: NON_FIRE, label: "Non-Kebakaran", count: stats.nonFire },
-  ];
+  const FILTERS = isAgni
+    ? [
+        { value: "all", label: "Semua", count: stats.total },
+        { value: "baru", label: "Baru", count: stats.total - stats.diproses - stats.selesai },
+        { value: "diproses", label: "Diproses", count: stats.diproses },
+        { value: "selesai", label: "Selesai", count: stats.selesai },
+      ]
+    : [
+        { value: "all", label: "Semua", count: stats.total },
+        { value: FIRE, label: "Kebakaran", count: stats.fire },
+        { value: NON_FIRE, label: "Non-Kebakaran", count: stats.nonFire },
+      ];
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-50">
+    <div className="flex min-h-dvh flex-col bg-lightbg">
       {/* Header admin */}
       <header className="safe-area-top sticky top-0 z-30 border-b border-slate-200/70 bg-white/95 shadow-sm shadow-slate-900/5 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-3 py-3.5 sm:gap-3 sm:px-4">
           <span className="flex shrink-0 items-center gap-1 sm:gap-1.5">
-            {LOGOS.map((logo) => (
+            {logoSet(agency).map((logo) => (
               <img
                 key={logo.src}
                 src={logo.src}
@@ -292,14 +353,14 @@ function AdminDashboard({ onLogout }) {
           </span>
 
           <div className="min-w-0 flex-1 leading-tight">
-            <p className="flex flex-wrap items-center gap-x-2 text-sm font-extrabold tracking-wide text-basarnasblue sm:text-base">
-              ADMIN SAT SET
-              <span className="rounded-full bg-sarorange/10 px-2 py-0.5 text-[9px] font-bold tracking-widest text-sarorange sm:text-[10px]">
-                PANEL INTERNAL BASARNAS
+            <p className="flex flex-wrap items-center gap-x-2 text-sm font-extrabold tracking-wide text-primary sm:text-base">
+              {agencyTitle}
+              <span className="rounded-full bg-fireorange/10 px-2 py-0.5 text-[9px] font-bold tracking-widest text-fireorange sm:text-[10px]">
+                {agencyBadge}
               </span>
             </p>
             <p className="text-[10px] leading-snug text-slate-500 sm:text-[11px]">
-              History Laporan Panic Button
+              {agencyHint}
             </p>
           </div>
 
@@ -327,13 +388,13 @@ function AdminDashboard({ onLogout }) {
           </button>
         </div>
 
-        <div className="h-1 bg-gradient-to-r from-basarnasblue via-basarnasblue to-sarorange" />
+        <div className="h-1 bg-gradient-to-r from-primary via-goldyellow to-fireorange" />
       </header>
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-8 pt-5">
         {/* Banner alarm laporan baru */}
         {newCount > 0 && (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-orange-300 bg-orange-50 p-3 text-sm font-semibold text-orange-800">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-fireorange/30 bg-fireorange/10 p-3 text-sm font-semibold text-fireorange-dark">
             <span className="flex items-center gap-2">
               <TriangleAlert className="h-4 w-4 animate-pulse" />
               {newCount} laporan baru masuk! Segera lakukan pemeriksaan.
@@ -341,7 +402,7 @@ function AdminDashboard({ onLogout }) {
             <button
               type="button"
               onClick={() => setNewCount(0)}
-              className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-orange-700 shadow-sm"
+              className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-fireorange-dark shadow-sm"
             >
               Tandai sudah dibaca
             </button>
@@ -352,22 +413,42 @@ function AdminDashboard({ onLogout }) {
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard
             icon={<ListChecks className="h-5 w-5" />}
-            label="Total Laporan"
+            label={isAgni ? "Total Laporan Kebakaran" : "Total Laporan"}
             value={stats.total}
-            tint="bg-basarnasblue"
+            tint="bg-primary"
           />
-          <StatCard
-            icon={<Flame className="h-5 w-5" />}
-            label="Kebakaran"
-            value={stats.fire}
-            tint="bg-red-600"
-          />
-          <StatCard
-            icon={<Siren className="h-5 w-5" />}
-            label="Non-Kebakaran"
-            value={stats.nonFire}
-            tint="bg-sarorange"
-          />
+          {!isAgni && (
+            <StatCard
+              icon={<Flame className="h-5 w-5" />}
+              label="Kebakaran"
+              value={stats.fire}
+              tint="bg-red-600"
+            />
+          )}
+          {!isAgni && (
+            <StatCard
+              icon={<Siren className="h-5 w-5" />}
+              label="Non-Kebakaran"
+              value={stats.nonFire}
+              tint="bg-fireorange"
+            />
+          )}
+          {isAgni && (
+            <StatCard
+              icon={<RefreshCw className="h-5 w-5" />}
+              label="Sedang Diproses"
+              value={stats.diproses}
+              tint="bg-fireorange"
+            />
+          )}
+          {isAgni && (
+            <StatCard
+              icon={<ShieldCheck className="h-5 w-5" />}
+              label="Selesai"
+              value={stats.selesai}
+              tint="bg-forestgreen"
+            />
+          )}
           <StatCard
             icon={<Users className="h-5 w-5" />}
             label="Total Korban"
@@ -386,7 +467,7 @@ function AdminDashboard({ onLogout }) {
                 onClick={() => setFilter(item.value)}
                 className={`rounded-full border-2 px-4 py-2 text-sm font-bold transition-colors
                   ${filter === item.value
-                    ? "border-basarnasblue bg-basarnasblue text-white"
+                    ? "border-primary bg-primary text-white"
                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"}`}
               >
                 {item.label}
@@ -399,7 +480,7 @@ function AdminDashboard({ onLogout }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Cari tiket / pelapor / wilayah..."
-            className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-4 text-base outline-none focus:border-basarnasblue sm:max-w-xs"
+            className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-4 text-base outline-none focus:border-primary sm:max-w-xs"
           />
         </section>
 
@@ -443,7 +524,7 @@ function AdminDashboard({ onLogout }) {
                     return (
                       <tr key={key} className="transition-colors hover:bg-slate-50/80">
                         <td className="px-4 py-3">
-                          <p className="font-mono text-xs font-bold text-basarnasblue">
+                          <p className="font-mono text-xs font-bold text-primary">
                             {report.ticketId ?? "-"}
                           </p>
                           <p className="text-[11px] text-slate-400">
@@ -464,7 +545,11 @@ function AdminDashboard({ onLogout }) {
                           {report.victimCount}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap font-medium text-slate-700">
-                          {formatDistanceKm(report.distances?.basarnas ?? null)}
+                          {formatDistanceKm(
+                            isAgni
+                              ? (report.distances?.manggalaAgni ?? null)
+                              : (report.distances?.basarnas ?? null),
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <select
@@ -477,10 +562,10 @@ function AdminDashboard({ onLogout }) {
                               STATUS_STYLES[report.status ?? "baru"]
                             } ${
                               (report.status ?? "baru") === "baru"
-                                ? "border-orange-300"
+                                ? "border-fireorange/30"
                                 : (report.status ?? "baru") === "diproses"
-                                  ? "border-basarnasblue/30"
-                                  : "border-emerald-300"
+                                  ? "border-primary/30"
+                                  : "border-forestgreen/40"
                             }`}
                           >
                             {Object.entries(STATUS_LABELS).map(([value, label]) => (
@@ -510,7 +595,7 @@ function AdminDashboard({ onLogout }) {
                               href={`https://www.google.com/maps?q=${report.latitude},${report.longitude}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-basarnasblue px-3 py-1.5 text-xs font-bold text-white hover:bg-basarnasblue-dark"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-primary-dark"
                             >
                               <MapPin className="h-3.5 w-3.5" /> Maps
                             </a>
@@ -528,6 +613,7 @@ function AdminDashboard({ onLogout }) {
                   <AdminReportCard
                     key={report.ticketId ?? report.submittedAt}
                     report={report}
+                    agency={agency}
                     onStatusChange={(status) => updateStatus(report.ticketId, status)}
                   />
                 ))}
@@ -545,8 +631,11 @@ function AdminDashboard({ onLogout }) {
 
       <footer className="border-t border-slate-200/70 bg-white">
         <div className="safe-area-bottom mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-5 text-center text-xs text-slate-500">
-          <span className="flex items-center gap-1.5 font-semibold text-basarnasblue">
-            <ShieldCheck className="h-3.5 w-3.5" /> Panel Admin SAT SET — Basarnas Banyuwangi
+          <span className="flex items-center gap-1.5 font-semibold text-primary">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            {isAgni
+              ? "Panel Admin SAT SET — Manggala Agni, Kementerian Perhubungan"
+              : "Panel Admin SAT SET — Basarnas Banyuwangi"}
           </span>
           <span className="text-slate-300">|</span>
           <a href={publicUrl()} className="underline-offset-2 hover:underline">
@@ -574,7 +663,7 @@ function ClassificationBadge({ classification }) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
-        fire ? "bg-red-50 text-red-700" : "bg-orange-50 text-orange-700"
+        fire ? "bg-red-50 text-red-700" : "bg-fireorange/10 text-fireorange-dark"
       }`}
     >
       {fire && <Flame className="h-3 w-3" />}
@@ -584,7 +673,8 @@ function ClassificationBadge({ classification }) {
 }
 
 /** Kartu laporan untuk layar HP: lengkap dengan tiket, status, & foto. */
-function AdminReportCard({ report, onStatusChange }) {
+function AdminReportCard({ report, agency, onStatusChange }) {
+  const isAgni = agency === "manggala_agni";
   const fire = isFireIncident(report.classification);
   const mapsUrl = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
   const status = report.status ?? "baru";
@@ -593,7 +683,7 @@ function AdminReportCard({ report, onStatusChange }) {
     <div className="p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-mono text-xs font-bold text-basarnasblue">
+          <p className="font-mono text-xs font-bold text-primary">
             {report.ticketId ?? "-"}
           </p>
           <p className="mt-0.5 truncate font-bold text-slate-900">{reporterName(report)}</p>
@@ -622,14 +712,22 @@ function AdminReportCard({ report, onStatusChange }) {
           <dd className="font-bold text-slate-800">{report.victimCount} jiwa</dd>
         </div>
         <div className="rounded-lg bg-slate-50 px-3 py-2">
-          <dt className="text-slate-500">Jarak BASARNAS</dt>
+          <dt className="text-slate-500">
+            {isAgni ? "Jarak Manggala Agni" : "Jarak BASARNAS"}
+          </dt>
           <dd className="font-bold text-slate-800">
-            {formatDistanceKm(report.distances?.basarnas ?? null)}
+            {formatDistanceKm(
+              isAgni
+                ? (report.distances?.manggalaAgni ?? null)
+                : (report.distances?.basarnas ?? null),
+            )}
           </dd>
         </div>
         <div className="rounded-lg bg-slate-50 px-3 py-2">
           <dt className="text-slate-500">Distribusi ke</dt>
-          <dd className="font-bold text-slate-800">{statusDistribusi(report)}</dd>
+          <dd className="font-bold text-slate-800">
+            {isAgni ? "Manggala Agni (kebakaran)" : statusDistribusi(report)}
+          </dd>
         </div>
       </dl>
 
@@ -639,7 +737,7 @@ function AdminReportCard({ report, onStatusChange }) {
           onChange={(e) => onStatusChange(e.target.value)}
           aria-label={`Status ${report.ticketId ?? ""}`}
           className={`h-11 flex-1 rounded-xl border-2 px-3 text-sm font-bold outline-none
-            ${status === "baru" ? "border-orange-300" : status === "diproses" ? "border-basarnasblue/30" : "border-emerald-300"}`}
+            ${status === "baru" ? "border-fireorange/30" : status === "diproses" ? "border-primary/30" : "border-forestgreen/40"}`}
         >
           {Object.entries(STATUS_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -670,7 +768,7 @@ function AdminReportCard({ report, onStatusChange }) {
           target="_blank"
           rel="noreferrer"
           className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-bold text-white
-            ${fire ? "bg-red-600 hover:bg-red-700" : "bg-basarnasblue hover:bg-basarnasblue-dark"}`}
+            ${fire ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary-dark"}`}
         >
           <MapPin className="h-4 w-4" /> Lihat TKP di Google Maps
           <ExternalLink className="h-3.5 w-3.5 opacity-70" />

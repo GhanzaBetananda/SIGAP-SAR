@@ -1,13 +1,20 @@
 @import "tailwindcss";
 
-/* ====== Identitas visual BASARNAS: putih dominan + aksen oranye & biru ====== */
+/* ====== PALET STANDAR SAT SET (modern & profesional) ======
+   Primary Blue  #168CCB  -> primary / primary-dark
+   Forest Green  #228B45  -> forestgreen  (status baik/selesai)
+   Fire Orange   #E94B24  -> fireorange / fireorange-dark (aksi/darurat)
+   Gold Yellow   #E9B72F  -> goldyellow  (aksent premium)
+   Light Background #F5F7FA -> lightbg (latar halaman)            */
 @theme {
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  /* Biru khas BASARNAS untuk teks/badge aksen */
-  --color-basarnasblue: #10457e;
-  --color-basarnasblue-dark: #0b335f;
-  /* Oranye aksi khas SAR */
-  --color-sarorange: #ea580c;
+  --color-primary: #168ccb;
+  --color-primary-dark: #0e6f9d;
+  --color-fireorange: #e94b24;
+  --color-fireorange-dark: #c23a17;
+  --color-forestgreen: #228b45;
+  --color-goldyellow: #e9b72f;
+  --color-lightbg: #f5f7fa;
 }
 
 html {

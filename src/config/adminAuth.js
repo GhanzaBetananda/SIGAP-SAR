@@ -1,53 +1,74 @@
 // ============================================================
 // LOGIN PANEL ADMIN (SIMULASI FRONTEND)
-// Kredensial ditentukan untuk panel admin sigapsar.
+// Mendukung dua instansi dengan akun terpisah:
+//   - BASARNAS        (Badan SAR Nasional)
+//   - MANGGALA AGNI   (Kementerian Perhubungan)
+// Identitas instansi disimpan dalam sesi agar panel tampil
+// sesuai agency domainnya.
 //
-// PENTING: ini hanya simulasi frontend — nama pengguna/kata
-// sandi tertanam di bundle sehingga BISA dilihat siapapun yang
-// membuka sumber halaman. Ganti dengan autentikasi backend
-// (mis. JWT/session server) saat integrasi backend.
+// PENTING: ini hanya simulasi frontend — kredensial tertanam
+// di bundle dan BISA dibaca siapa pun. Ganti dengan autentikasi
+// backend saat integrasi.
 // ============================================================
 
-export const ADMIN_CREDENTIALS = {
-  username: "KPPBANYUWANGI",
-  password: "ADMINSIGAPSAR",
+export const ADMIN_ACCOUNTS = [
+  {
+    username: "KPPBANYUWANGI",
+    password: "ADMINSIGAPSAR",
+    agency: "basarnas",
+  },
+  {
+    username: "MANGGALAGNI",
+    password: "ADMINAGNI2026",
+    agency: "manggala_agni",
+  },
+];
+
+const AGENCY_SESSION_KEY = "sigapsar_admin_agency";
+
+export const AGENCY_LABELS = {
+  basarnas: "BASARNAS",
+  manggala_agni: "MANGGALA AGNI",
 };
 
-const SESSION_KEY = "sigapsar_admin_session";
-
-/** True jika sudah login pada tab browser ini (berakhir saat tab ditutup). */
-export function isAdminAuthenticated() {
-  try {
-    return sessionStorage.getItem(SESSION_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
 /**
- * Cek username & password. Return true dan tandai sesi login bila cocok.
+ * Mencocokkan username & password terhadap akun instansi yang
+ * dituju (agency harus sama). Return nama instansi bila cocok.
  * @param {string} username
  * @param {string} password
- * @returns {boolean}
+ * @param {"basarnas"|"manggala_agni"} agency
+ * @returns {string|null} agency yang login
  */
-export function adminLogin(username, password) {
-  const ok =
-    username.trim().toUpperCase() === ADMIN_CREDENTIALS.username &&
-    password === ADMIN_CREDENTIALS.password;
-  if (ok) {
-    try {
-      sessionStorage.setItem(SESSION_KEY, "1");
-    } catch {
-      /* storage nonaktif — login tetap berjalan in-memory */
-    }
+export function adminLogin(username, password, agency) {
+  const account = ADMIN_ACCOUNTS.find(
+    (item) =>
+      item.username === (username || "").trim().toUpperCase() &&
+      item.password === password &&
+      item.agency === agency,
+  );
+  if (!account) return null;
+  try {
+    sessionStorage.setItem(AGENCY_SESSION_KEY, account.agency);
+  } catch {
+    /* storage nonaktif — sesi tetap berlaku selama tab hidup */
   }
-  return ok;
+  return account.agency;
+}
+
+/** Agency yang sedang login pada tab ini, atau null. */
+export function getAdminAgency() {
+  try {
+    const agency = sessionStorage.getItem(AGENCY_SESSION_KEY);
+    return agency && AGENCY_LABELS[agency] ? agency : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Keluar dari sesi admin. */
 export function adminLogout() {
   try {
-    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(AGENCY_SESSION_KEY);
   } catch {
     /* abaikan */
   }

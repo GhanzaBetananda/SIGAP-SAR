@@ -77,8 +77,8 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-50">
-      <div className="h-1 bg-gradient-to-r from-basarnasblue via-sarorange to-basarnasblue" />
+    <div className="flex min-h-dvh flex-col bg-lightbg">
+      <div className="h-1 bg-gradient-to-r from-primary via-fireorange to-goldyellow" />
 
       <div className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-sm rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">
@@ -94,11 +94,11 @@ export default function Login() {
             ))}
           </div>
 
-          <h1 className="mt-4 text-center text-lg font-extrabold tracking-wide text-basarnasblue">
+          <h1 className="mt-4 text-center text-lg font-extrabold tracking-wide text-primary">
             SAT SET
           </h1>
           <p className="mt-1 text-center text-xs leading-snug text-slate-500">
-            Sistem Aplikasi Tanggap &amp; Siaga Evakuasi Terpadu — BASARNAS Banyuwangi
+            Sistem Aplikasi Tanggap &amp; Siaga Evakuasi Terpadu  BASARNAS Banyuwangi
           </p>
 
           <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
@@ -116,7 +116,7 @@ export default function Login() {
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Username akun Anda"
                   autoFocus
-                  className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-base outline-none focus:border-basarnasblue"
+                  className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-base outline-none focus:border-primary"
                 />
               </div>
             </div>
@@ -134,7 +134,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password akun Anda"
-                  className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-base outline-none focus:border-basarnasblue"
+                  className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-base outline-none focus:border-primary"
                 />
               </div>
             </div>
@@ -148,7 +148,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={!username || !password}
-              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-sarorange text-base font-bold text-white shadow-lg shadow-sarorange/30 transition-all hover:bg-orange-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-fireorange text-base font-bold text-white shadow-lg shadow-fireorange/30 transition-all hover:bg-fireorange-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <LogIn className="h-5 w-5" />
               Masuk

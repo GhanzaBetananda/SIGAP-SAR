@@ -73,14 +73,14 @@ export default function PhotoPicker() {
         <button
           type="button"
           onClick={() => cameraInputRef.current?.click()}
-          className="flex h-12 items-center gap-2 rounded-xl bg-basarnasblue px-5 text-sm font-bold text-white hover:bg-basarnasblue-dark active:scale-[0.97] active:bg-basarnasblue-dark"
+          className="flex h-12 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-white hover:bg-primary-dark active:scale-[0.97] active:bg-primary-dark"
         >
           <Camera className="h-5 w-5" /> Kamera
         </button>
         <button
           type="button"
           onClick={() => galleryInputRef.current?.click()}
-          className="flex h-12 items-center gap-2 rounded-xl border-2 border-slate-300 px-5 text-sm font-semibold text-slate-700 active:scale-[0.97] hover:border-orange-400 hover:text-orange-700"
+          className="flex h-12 items-center gap-2 rounded-xl border-2 border-slate-300 px-5 text-sm font-semibold text-slate-700 active:scale-[0.97] hover:border-fireorange/40 hover:text-fireorange-dark"
         >
           <ImagePlus className="h-5 w-5" /> Galeri / Berkas
         </button>
@@ -103,7 +103,7 @@ export default function PhotoPicker() {
 
       {report.photoUrl && (
         <div className="mt-4 rounded-xl border-2 border-slate-200 bg-slate-50 p-4">
-          <p className="mb-2 text-sm font-semibold text-emerald-700">
+          <p className="mb-2 text-sm font-semibold text-forestgreen">
             Foto tersimpan {report.photoName ? `(${report.photoName})` : ""}
           </p>
           <img
