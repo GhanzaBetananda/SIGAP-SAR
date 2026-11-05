@@ -11,43 +11,13 @@ import { ChevronDown, Lock, LogIn, UserRound } from "lucide-react";
 import { useAuth } from "../context/AuthProvider.jsx";
 import { useReport } from "../context/useReport.js";
 import { ACCOUNTS } from "../data/accounts.js";
+import { accountIdentityPatch } from "../context/reportState.js";
 
 const LOGOS = [
   { src: "/456.png", alt: "Logo 456" },
   { src: "/472.png", alt: "Logo 472" },
   { src: "/BASARNAS.png", alt: "Logo BASARNAS" },
 ];
-
-/** Menyalin identitas akun ke state laporan agar seluruh halaman konsisten. */
-function identityPatch(session) {
-  const patch = {
-    reporterCategory: session.reporterCategory,
-    // Reset data spesifik laporan lama
-    tkpDistrict: "",
-    photoUrl: "",
-    photoName: "",
-  };
-  if (session.reporterCategory === "pegawai_basarnas") {
-    patch.employeeName = session.name;
-    patch.district = "";
-    patch.potentialSarName = "";
-    patch.kampungRescueDesa = "";
-    patch.kampungRescueName = "";
-  } else if (session.reporterCategory === "potensi_sar") {
-    patch.potentialSarName = session.name;
-    patch.district = session.region;
-    patch.employeeName = "";
-    patch.kampungRescueDesa = "";
-    patch.kampungRescueName = "";
-  } else {
-    patch.kampungRescueName = session.name;
-    patch.kampungRescueDesa = session.region;
-    patch.employeeName = "";
-    patch.district = "";
-    patch.potentialSarName = "";
-  }
-  return patch;
-}
 
 export default function Login() {
   const { login } = useAuth();
@@ -66,7 +36,7 @@ export default function Login() {
       return;
     }
     // Identitas pelapor langsung diisi dari data akun login
-    updateReport(identityPatch(session));
+    updateReport(accountIdentityPatch(session));
     navigate("/", { replace: true });
   }
 

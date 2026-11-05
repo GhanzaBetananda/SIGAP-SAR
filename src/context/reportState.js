@@ -47,6 +47,42 @@ const MAX_SAVED_REPORTS = 50;
 
 export const ReportContext = createContext(null);
 
+/**
+ * Draf patch identitas pelapor yang dibangun dari data sesi akun.
+ * Dipakai saat login DAN saat sesi dipulihkan (mis. halaman di-refresh),
+ * agar field identitas laporan selalu konsisten dan tidak kosong.
+ * @param {{name: string, reporterCategory: string, region: string}} session
+ */
+export function accountIdentityPatch(session) {
+  const patch = {
+    reporterCategory: session.reporterCategory,
+    // Reset data spesifik laporan lama
+    tkpDistrict: "",
+    photoUrl: "",
+    photoName: "",
+  };
+  if (session.reporterCategory === "pegawai_basarnas") {
+    patch.employeeName = session.name;
+    patch.district = "";
+    patch.potentialSarName = "";
+    patch.kampungRescueDesa = "";
+    patch.kampungRescueName = "";
+  } else if (session.reporterCategory === "potensi_sar") {
+    patch.potentialSarName = session.name;
+    patch.district = session.region;
+    patch.employeeName = "";
+    patch.kampungRescueDesa = "";
+    patch.kampungRescueName = "";
+  } else {
+    patch.kampungRescueName = session.name;
+    patch.kampungRescueDesa = session.region;
+    patch.employeeName = "";
+    patch.district = "";
+    patch.potentialSarName = "";
+  }
+  return patch;
+}
+
 export function readSimulatedReports() {
   try {
     return JSON.parse(localStorage.getItem(SIMULATED_REPORTS_KEY)) ?? [];
