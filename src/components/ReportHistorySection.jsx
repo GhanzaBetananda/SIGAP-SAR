@@ -11,15 +11,22 @@ import { useEffect, useState } from "react";
 import { readSimulatedReports } from "../context/reportState.js";
 import { getIncidentLabel, isFireIncident } from "../data/incidentTypes.js";
 
+// Status laporan kini otomatis dari tanggapan instansi (baru ->
+// diterima -> diterjunkan -> selesai) — label tambahan di bawah
+// menjaga menu dropdown/filter yang masih berbasis "diproses".
 export const STATUS_LABELS = {
   baru: "Laporan Baru",
   diproses: "Sedang Diproses",
+  diterima: "Diterima",
+  diterjunkan: "Tim Diterjunkan",
   selesai: "Selesai",
 };
 
 export const STATUS_STYLES = {
   baru: "bg-fireorange/10 text-fireorange-dark",
   diproses: "bg-primary/10 text-primary",
+  diterima: "bg-goldyellow/20 text-yellow-700",
+  diterjunkan: "bg-primary/10 text-primary",
   selesai: "bg-forestgreen/10 text-forestgreen",
 };
 

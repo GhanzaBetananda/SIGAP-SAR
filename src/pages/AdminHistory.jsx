@@ -3,26 +3,35 @@
 // Halaman milik "domain berbeda" (mis. admin.sigapsar...):
 //
 // Fitur: statistik, filter+pencarian, nomor tiket, foto TKP,
-// alur status pelaporan (Baru -> Diproses -> Selesai), dan
+// alur tanggapan instansi (checklist diterima -> input anggota &
+// peralatan -> diterjunkan -> selesai; laporan kebakaran dapat
+// ditanggapi BASARNAS dan Manggala Agni secara silang), serta
 // peringatan suara+banner saat laporan baru masuk.
 // Sumber data saat ini: localStorage perangkat ini (simulasi).
-// Ganti loadReports()/updateStatus() dengan fetch API s
+// Ganti loadReports()/updateReport() dengan fetch API s
 // saat backend tersedia.
 // ============================================================
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Check,
+  CheckCircle2,
+  Clock,
   ExternalLink,
   Flame,
   Inbox,
   ListChecks,
   LogOut,
   MapPin,
+  Minus,
+  Package,
+  Plus,
   RefreshCw,
   ShieldCheck,
   Siren,
   TriangleAlert,
   Users,
+  X,
 } from "lucide-react";
 import {
   readSimulatedReports,
@@ -32,14 +41,23 @@ import { getIncidentLabel, isFireIncident } from "../data/incidentTypes.js";
 import { districtLabel } from "../data/districts.js";
 import { REPORTER_CATEGORIES, reporterName } from "../utils/whatsappGenerator.js";
 import { formatDistanceKm } from "../utils/distanceCalculator.js";
-import { publicUrl, manggalaUrl } from "../utils/domains.js";
+import { publicUrl } from "../utils/domains.js";
 import {
   adminLogin,
   adminLogout,
   getAdminAgency,
+  getAdminUsername,
   AGENCY_LABELS,
 } from "../config/adminAuth.js";
 import { STATUS_LABELS, STATUS_STYLES } from "../components/ReportHistorySection.jsx";
+import {
+  applyResponse,
+  RESPONSE_AGENCIES,
+  responseFor,
+  statusGroup,
+  totalEquipmentUnits,
+} from "../utils/reportResponses.js";
+import { EQUIPMENT_PRESETS } from "../data/responsePresets.js";
 
 const LOGOS_BASARNAS = [
   { src: "/456.png", alt: "Logo 456" },
@@ -93,6 +111,20 @@ function formatDateTime(iso) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** Waktu pendek (jam:menit) untuk cap aksi tanggapan. */
+function formatTime(iso) {
+  if (!iso) return "-";
+  return new Date(iso).toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** Penanda tiket yang stabil (tiket atau waktu kirim sebagai cadangan). */
+function ticketKey(report) {
+  return report.ticketId ?? report.submittedAt;
 }
 
 /** Teks singkat wilayah pelapor (kecamatan / desa). */
@@ -252,6 +284,9 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
   const [updatedAt, setUpdatedAt] = useState(null);
   const [newCount, setNewCount] = useState(0);
   const prevCountRef = useRef(0);
+  // Tiket yang sedang dibuka pada modal tanggapan (id tiket).
+  const [detailTicket, setDetailTicket] = useState(null);
+  const actor = getAdminUsername();
 
   const loadReports = useCallback(() => {
     const history = readSimulatedReports()
@@ -269,17 +304,76 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
     setUpdatedAt(new Date());
   }, []);
 
-  /** Ubah status penanganan laporan (baru -> diproses -> selesai). */
-  const updateStatus = useCallback(
-    (ticketId, status) => {
+  /** Ubah satu laporan dengan fungsi pengubah, lalu simpan kembali. */
+  const updateReport = useCallback(
+    (ticketId, mutator) => {
       const next = readSimulatedReports().map((report) =>
-        report.ticketId === ticketId ? { ...report, status } : report,
+        ticketKey(report) === ticketId ? mutator(report) : report,
       );
       writeSimulatedReports(next);
       loadReports();
     },
     [loadReports],
   );
+
+  /** Checklist sekali klik: instansi menandai laporan sudah diterima. */
+  const receiveReport = useCallback(
+    (ticketId) => {
+      updateReport(ticketId, (report) =>
+        responseFor(report, agency).received
+          ? report
+          : applyResponse(report, agency, {
+              received: true,
+              receivedAt: new Date().toISOString(),
+              receivedBy: actor,
+            }),
+      );
+    },
+    [updateReport, agency, actor],
+  );
+
+  /**
+   * Simpan tim & peralatan instansi sendiri -> status naik menjadi
+   * "diterjunkan". `payload` = { personnel, equipment, note }.
+   */
+  const saveDispatch = useCallback(
+    (ticketId, payload) => {
+      updateReport(ticketId, (report) =>
+        applyResponse(report, agency, (prev) => ({
+          ...payload,
+          dispatchedAt: prev.dispatchedAt ?? new Date().toISOString(),
+        })),
+      );
+    },
+    [updateReport, agency],
+  );
+
+  /** Tandai tugas instansi ini selesai (instansi tetangga ikut terlihat). */
+  const finishTicket = useCallback(
+    (ticketId) => {
+      updateReport(ticketId, (report) =>
+        applyResponse(report, agency, (prev) => ({
+          finishedAt: prev.finishedAt ?? new Date().toISOString(),
+        })),
+      );
+    },
+    [updateReport, agency],
+  );
+
+  /** Buka kembali tanggapan yang sudah ditandai selesai. */
+  const reopenTicket = useCallback(
+    (ticketId) => {
+      updateReport(ticketId, (report) =>
+        applyResponse(report, agency, { finishedAt: null }),
+      );
+    },
+    [updateReport, agency],
+  );
+
+  /** Laporan yang sedang dibuka pada modal tanggapan. */
+  const detailReport = detailTicket
+    ? reports.find((report) => ticketKey(report) === detailTicket) ?? null
+    : null;
 
   useEffect(() => {
     loadReports();
@@ -296,9 +390,15 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
     const fire = isFireIncident(report.classification);
     if (filter === FIRE && !fire) return false;
     if (filter === NON_FIRE && fire) return false;
-    if (filter === "baru" && (report.status ?? "baru") !== "baru") return false;
-    if (filter === "diproses" && (report.status ?? "baru") !== "diproses") return false;
-    if (filter === "selesai" && (report.status ?? "baru") !== "selesai") return false;
+    if (filter === "baru" && statusGroup(report.status ?? "baru") !== "baru") {
+      return false;
+    }
+    if (filter === "diproses" && statusGroup(report.status ?? "baru") !== "diproses") {
+      return false;
+    }
+    if (filter === "selesai" && statusGroup(report.status ?? "baru") !== "selesai") {
+      return false;
+    }
 
     const q = query.trim().toLowerCase();
     if (!q) return true;
@@ -319,8 +419,8 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
     fire: scopedReports.filter((r) => isFireIncident(r.classification)).length,
     nonFire: scopedReports.filter((r) => !isFireIncident(r.classification)).length,
     victims: scopedReports.reduce((sum, r) => sum + (Number(r.victimCount) || 0), 0),
-    diproses: scopedReports.filter((r) => (r.status ?? "baru") === "diproses").length,
-    selesai: scopedReports.filter((r) => (r.status ?? "baru") === "selesai").length,
+    diproses: scopedReports.filter((r) => statusGroup(r.status ?? "baru") === "diproses").length,
+    selesai: scopedReports.filter((r) => statusGroup(r.status ?? "baru") === "selesai").length,
   };
 
   const FILTERS = isAgni
@@ -515,14 +615,19 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                     <th className="px-4 py-3 text-center font-bold">Korban</th>
                     <th className="px-4 py-3 font-bold">Jarak</th>
                     <th className="px-4 py-3 font-bold">Status</th>
+                    <th className="px-4 py-3 font-bold">Tanggapan {AGENCY_LABELS[agency]}</th>
                     <th className="px-4 py-3 font-bold">TKP</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map((report) => {
-                    const key = report.ticketId ?? report.submittedAt;
+                    const key = ticketKey(report);
                     return (
-                      <tr key={key} className="transition-colors hover:bg-slate-50/80">
+                      <tr
+                        key={key}
+                        onClick={() => setDetailTicket(key)}
+                        className="cursor-pointer transition-colors hover:bg-primary/5"
+                      >
                         <td className="px-4 py-3">
                           <p className="font-mono text-xs font-bold text-primary">
                             {report.ticketId ?? "-"}
@@ -551,31 +656,24 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                               : (report.distances?.basarnas ?? null),
                           )}
                         </td>
-                        <td className="px-4 py-3">
-                          <select
-                            value={report.status ?? "baru"}
-                            onChange={(e) =>
-                              updateStatus(report.ticketId, e.target.value)
-                            }
-                            aria-label={`Status ${report.ticketId ?? ""}`}
-                            className={`w-32 rounded-lg border-2 px-2 py-1.5 text-xs font-bold outline-none ${
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${
                               STATUS_STYLES[report.status ?? "baru"]
-                            } ${
-                              (report.status ?? "baru") === "baru"
-                                ? "border-fireorange/30"
-                                : (report.status ?? "baru") === "diproses"
-                                  ? "border-primary/30"
-                                  : "border-forestgreen/40"
                             }`}
                           >
-                            {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
+                            {STATUS_LABELS[report.status ?? "baru"] ?? "-"}
+                          </span>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <ResponseCell
+                            report={report}
+                            agency={agency}
+                            onReceive={() => receiveReport(key)}
+                            onOpen={() => setDetailTicket(key)}
+                          />
+                        </td>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
                             {report.photoUrl && (
                               <a
@@ -611,10 +709,11 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
               <div className="divide-y divide-slate-100 md:hidden">
                 {filtered.map((report) => (
                   <AdminReportCard
-                    key={report.ticketId ?? report.submittedAt}
+                    key={ticketKey(report)}
                     report={report}
                     agency={agency}
-                    onStatusChange={(status) => updateStatus(report.ticketId, status)}
+                    onReceive={() => receiveReport(ticketKey(report))}
+                    onOpen={() => setDetailTicket(ticketKey(report))}
                   />
                 ))}
               </div>
@@ -628,6 +727,20 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
           </p>
         )}
       </main>
+
+      {/* Modal tanggapan: form instansi sendiri + tanggapan instansi lain */}
+      {detailReport && (
+        <ReportResponseModal
+          key={ticketKey(detailReport)}
+          report={detailReport}
+          agency={agency}
+          onReceive={() => receiveReport(ticketKey(detailReport))}
+          onSaveDispatch={(payload) => saveDispatch(ticketKey(detailReport), payload)}
+          onFinish={() => finishTicket(ticketKey(detailReport))}
+          onReopen={() => reopenTicket(ticketKey(detailReport))}
+          onClose={() => setDetailTicket(null)}
+        />
+      )}
 
       <footer className="border-t border-slate-200/70 bg-white">
         <div className="safe-area-bottom mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-5 text-center text-xs text-slate-500">
@@ -672,8 +785,8 @@ function ClassificationBadge({ classification }) {
   );
 }
 
-/** Kartu laporan untuk layar HP: lengkap dengan tiket, status, & foto. */
-function AdminReportCard({ report, agency, onStatusChange }) {
+/** Kartu laporan untuk layar HP: tiket, status otomatis, foto & tanggapan. */
+function AdminReportCard({ report, agency, onReceive, onOpen }) {
   const isAgni = agency === "manggala_agni";
   const fire = isFireIncident(report.classification);
   const mapsUrl = `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
@@ -731,20 +844,37 @@ function AdminReportCard({ report, agency, onStatusChange }) {
         </div>
       </dl>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <select
-          value={status}
-          onChange={(e) => onStatusChange(e.target.value)}
-          aria-label={`Status ${report.ticketId ?? ""}`}
-          className={`h-11 flex-1 rounded-xl border-2 px-3 text-sm font-bold outline-none
-            ${status === "baru" ? "border-fireorange/30" : status === "diproses" ? "border-primary/30" : "border-forestgreen/40"}`}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {/* Checklist sekali klik: laporan sudah diterima instansi ini */}
+        <button
+          type="button"
+          onClick={onReceive}
+          disabled={responseFor(report, agency).received}
+          aria-label={`Konfirmasi diterima ${report.ticketId ?? ""}`}
+          className={`flex h-11 items-center justify-center gap-2 rounded-xl border-2 text-sm font-bold transition-colors active:scale-[0.98] ${
+            responseFor(report, agency).received
+              ? "border-forestgreen/40 bg-forestgreen/10 text-forestgreen"
+              : "border-slate-200 bg-white text-slate-700 hover:border-forestgreen/50"
+          } disabled:cursor-default`}
         >
-          {Object.entries(STATUS_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+          {responseFor(report, agency).received ? (
+            <>
+              <CheckCircle2 className="h-4 w-4" />
+              Diterima {formatTime(responseFor(report, agency).receivedAt)}
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4" /> Terima
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white hover:bg-primary-dark active:scale-[0.98]"
+        >
+          <ListChecks className="h-4 w-4" /> Tanggapan
+        </button>
       </div>
 
       <div className="mt-2 flex gap-2">
@@ -774,6 +904,645 @@ function AdminReportCard({ report, agency, onStatusChange }) {
           <ExternalLink className="h-3.5 w-3.5 opacity-70" />
         </a>
       </div>
+    </div>
+  );
+}
+
+/** Kolom tanggapan di tabel lebar: tombol diterima sekali-klik + ringkasan. */
+function ResponseCell({ report, agency, onReceive, onOpen }) {
+  const own = responseFor(report, agency);
+  const fire = isFireIncident(report.classification);
+  const otherKey = fire
+    ? Object.keys(RESPONSE_AGENCIES).find((key) => key !== agency)
+    : null;
+  const other = otherKey ? responseFor(report, otherKey) : null;
+
+  if (!own.received) {
+    return (
+      <button
+        type="button"
+        onClick={onReceive}
+        title="Tandai laporan sudah diterima instansi ini"
+        className="inline-flex items-center gap-2 rounded-lg border-2 border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:border-forestgreen/50 hover:text-forestgreen"
+      >
+        <span className="h-4 w-4 rounded border-2 border-slate-300" /> Terima
+      </button>
+    );
+  }
+  return (
+    <button type="button" onClick={onOpen} title="Buka detail tanggapan" className="text-left">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-forestgreen/10 px-2.5 py-1 text-[11px] font-bold text-forestgreen">
+        <CheckCircle2 className="h-3 w-3" /> Diterima {formatTime(own.receivedAt)}
+      </span>
+      <span className="mt-1 block text-[11px] font-semibold text-slate-500">
+        {own.personnel || 0} anggota · {totalEquipmentUnits(own.equipment)} unit alat
+      </span>
+      {other && (
+        <span
+          className={`mt-0.5 block text-[10px] font-bold ${
+            other.received ? "text-forestgreen" : "text-slate-400"
+          }`}
+        >
+          {RESPONSE_AGENCIES[otherKey]}: {other.received ? "sudah respons ✓" : "belum respons"}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/**
+ * Modal detail + tanggapan laporan.
+ * - Panel instansi sendiri: checklist diterima, lalu input jumlah anggota,
+ *   peralatan (beserta jumlahnya), dan catatan -> tim diterjunkan ->
+ *   tandai selesai.
+ * - Panel instansi pasangan (laporan kebakaran): read-only, sehingga
+ *   BASARNAS dan Manggala Agni saling melihat tanggapan masing-masing.
+ */
+function ReportResponseModal({
+  report,
+  agency,
+  onReceive,
+  onSaveDispatch,
+  onFinish,
+  onReopen,
+  onClose,
+}) {
+  const fire = isFireIncident(report.classification);
+  const otherKeys = fire
+    ? Object.keys(RESPONSE_AGENCIES).filter((key) => key !== agency)
+    : [];
+
+  useEffect(() => {
+    function handleKey(event) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 sm:items-center sm:p-6"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[94dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+      >
+        {/* Header modal */}
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <div className="min-w-0">
+            <p className="font-mono text-sm font-bold text-primary">
+              {report.ticketId ?? "-"}
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <ClassificationBadge classification={report.classification} />
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                  STATUS_STYLES[report.status ?? "baru"]
+                }`}
+              >
+                {STATUS_LABELS[report.status ?? "baru"] ?? "-"}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Tutup"
+            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {/* Ringkasan laporan */}
+          <dl className="grid grid-cols-2 gap-2 text-xs">
+            {[
+              ["Pelapor", reporterName(report)],
+              [
+                "Kategori",
+                `${REPORTER_CATEGORIES[report.reporterCategory] || "-"}${
+                  reporterRegion(report) ? ` — ${reporterRegion(report)}` : ""
+                }`,
+              ],
+              ["Waktu lapor", formatDateTime(report.submittedAt)],
+              ["Korban", `${report.victimCount ?? 0} jiwa`],
+              ["Distribusi ke", statusDistribusi(report)],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg bg-slate-50 px-3 py-2">
+                <dt className="text-slate-500">{label}</dt>
+                <dd className="font-bold text-slate-800">{value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {report.photoUrl && (
+              <a
+                href={report.photoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-11 items-center gap-2 rounded-xl border-2 border-slate-200 px-4 text-sm font-semibold text-slate-700"
+              >
+                <img
+                  src={report.photoUrl}
+                  alt="Foto TKP"
+                  className="h-7 w-7 rounded-md object-cover"
+                />
+                Foto TKP
+              </a>
+            )}
+            <a
+              href={`https://www.google.com/maps?q=${report.latitude},${report.longitude}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white hover:bg-primary-dark"
+            >
+              <MapPin className="h-4 w-4" /> Lihat TKP di Google Maps
+              <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+            </a>
+          </div>
+
+          {/* Tanggapan instansi sendiri (form interaktif) */}
+          <OwnResponsePanel
+            report={report}
+            agency={agency}
+            onReceive={onReceive}
+            onSaveDispatch={onSaveDispatch}
+            onFinish={onFinish}
+            onReopen={onReopen}
+          />
+
+          {/* Tanggapan instansi pasangan (read-only) — laporan kebakaran */}
+          {otherKeys.map((key) => (
+            <OtherResponsePanel key={key} report={report} otherAgency={key} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Panel tanggapan instansi yang sedang login (form interaktif). */
+function OwnResponsePanel({
+  report,
+  agency,
+  onReceive,
+  onSaveDispatch,
+  onFinish,
+  onReopen,
+}) {
+  const own = responseFor(report, agency);
+  const finished = Boolean(own.finishedAt);
+  const presets = EQUIPMENT_PRESETS[agency] ?? [];
+  const [draft, setDraft] = useState(() => ({
+    personnel: own.personnel || 0,
+    equipment: (own.equipment ?? []).map((item) => ({ ...item })),
+    note: own.note ?? "",
+  }));
+  const [customName, setCustomName] = useState("");
+  const [error, setError] = useState("");
+
+  function togglePreset(name) {
+    setError("");
+    setDraft((prev) => {
+      const exists = prev.equipment.some((item) => item.name === name);
+      return {
+        ...prev,
+        equipment: exists
+          ? prev.equipment.filter((item) => item.name !== name)
+          : [...prev.equipment, { name, qty: 1 }],
+      };
+    });
+  }
+
+  function setQty(name, qty) {
+    setDraft((prev) => ({
+      ...prev,
+      equipment: prev.equipment.map((item) =>
+        item.name === name
+          ? { ...item, qty: Math.max(1, Math.round(Number(qty) || 1)) }
+          : item,
+      ),
+    }));
+  }
+
+  function addCustom() {
+    const name = customName.trim();
+    if (!name || draft.equipment.some((item) => item.name === name)) return;
+    setDraft((prev) => ({
+      ...prev,
+      equipment: [...prev.equipment, { name, qty: 1 }],
+    }));
+    setCustomName("");
+  }
+
+  /** Hapus item alat kustom dari draft. */
+  function removeEquipment(name) {
+    setDraft((prev) => ({
+      ...prev,
+      equipment: prev.equipment.filter((item) => item.name !== name),
+    }));
+  }
+
+  function handleSave() {
+    if (!(Number(draft.personnel) >= 1)) {
+      setError("Isi jumlah anggota terlebih dahulu (minimal 1).");
+      return;
+    }
+    setError("");
+    onSaveDispatch({
+      personnel: Number(draft.personnel),
+      equipment: draft.equipment,
+      note: draft.note.trim(),
+    });
+  }
+
+  return (
+    <section className="mt-5 rounded-2xl border-2 border-primary/30 bg-primary/[0.04] p-4">
+      <header className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-extrabold text-primary">
+          Tanggapan {RESPONSE_AGENCIES[agency]}
+        </h3>
+        <StageChip response={own} />
+      </header>
+
+      {!own.received ? (
+        <>
+          <button
+            type="button"
+            onClick={onReceive}
+            className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-forestgreen text-base font-bold text-white transition-all hover:brightness-110 active:scale-[0.98]"
+          >
+            <CheckCircle2 className="h-5 w-5" /> Konfirmasi Laporan Diterima
+          </button>
+          <p className="mt-2 text-center text-[11px] text-slate-500">
+            Menandakan petugas {RESPONSE_AGENCIES[agency]} sudah menerima laporan ini.
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="mt-3 flex flex-wrap items-center gap-1.5 rounded-xl bg-forestgreen/10 px-3 py-2 text-xs font-bold text-forestgreen">
+            <CheckCircle2 className="h-4 w-4" />
+            Diterima {formatDateTime(own.receivedAt)}
+            {own.receivedBy ? ` oleh ${own.receivedBy}` : ""}
+          </p>
+
+          {/* Jumlah anggota */}
+          <p className="mt-4 mb-1.5 text-xs font-bold text-slate-700">
+            Jumlah anggota diterjunkan
+          </p>
+          <NumberStepper
+            value={draft.personnel}
+            onChange={(value) => {
+              setError("");
+              setDraft((prev) => ({ ...prev, personnel: value }));
+            }}
+          />
+
+          {/* Peralatan */}
+          <p className="mt-4 mb-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-700">
+            <Package className="h-3.5 w-3.5" /> Peralatan yang dibawa (beserta jumlah)
+          </p>
+          <div className="grid gap-1.5">
+            {presets.map((name) => {
+              const item = draft.equipment.find((entry) => entry.name === name);
+              const checked = Boolean(item);
+              return (
+                <div
+                  key={name}
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
+                    checked ? "border-primary/40 bg-primary/5" : "border-slate-200 bg-white"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    disabled={finished}
+                    onClick={() => togglePreset(name)}
+                    className="flex flex-1 items-center gap-2 text-left font-semibold text-slate-700 disabled:opacity-60"
+                  >
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
+                        checked ? "border-primary bg-primary text-white" : "border-slate-300 bg-white"
+                      }`}
+                    >
+                      {checked && <Check className="h-3 w-3" />}
+                    </span>
+                    {name}
+                  </button>
+                  {checked && (
+                    <NumberStepper compact value={item.qty} onChange={(value) => setQty(name, value)} />
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Alat di luar preset */}
+            {draft.equipment
+              .filter((item) => !presets.includes(item.name))
+              .map((item) => (
+                <div
+                  key={item.name}
+                  className="flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/5 px-3 py-2 text-sm"
+                >
+                  <button
+                    type="button"
+                    disabled={finished}
+                    onClick={() => removeEquipment(item.name)}
+                    aria-label={`Hapus ${item.name}`}
+                    className="rounded-md p-1 text-red-500 hover:bg-red-50 disabled:opacity-40"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="flex-1 truncate font-semibold text-slate-700">
+                    {item.name}
+                  </span>
+                  <NumberStepper compact value={item.qty} onChange={(value) => setQty(item.name, value)} />
+                </div>
+              ))}
+          </div>
+
+          <div className="mt-2 flex gap-2">
+            <input
+              type="text"
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addCustom();
+                }
+              }}
+              placeholder="Alat lain — ketik nama alatnya..."
+              className="h-11 flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={addCustom}
+              disabled={!customName.trim()}
+              className="flex h-11 items-center gap-1 rounded-xl bg-slate-800 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-700 disabled:opacity-40"
+            >
+              <Plus className="h-4 w-4" /> Tambah
+            </button>
+          </div>
+
+          {/* Catatan */}
+          <p className="mt-4 mb-1.5 text-xs font-bold text-slate-700">Catatan (opsional)</p>
+          <textarea
+            value={draft.note}
+            rows={2}
+            onChange={(e) => setDraft((prev) => ({ ...prev, note: e.target.value }))}
+            placeholder="Keterangan tambahan, mis. berangkat dari pos terdekat..."
+            className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary"
+          />
+
+          {error && (
+            <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
+              {error}
+            </p>
+          )}
+
+          {/* Aksi */}
+          <div className="mt-4 grid gap-2">
+            <button
+              type="button"
+              onClick={handleSave}
+              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-white transition-all hover:bg-primary-dark active:scale-[0.98]"
+            >
+              {own.dispatchedAt ? (
+                <>
+                  <RefreshCw className="h-5 w-5" /> Perbarui Data Tim
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-5 w-5" /> Simpan &amp; Diterjunkan
+                </>
+              )}
+            </button>
+            {own.dispatchedAt && !finished && (
+              <button
+                type="button"
+                onClick={onFinish}
+                className="flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-forestgreen/50 bg-forestgreen/10 text-sm font-bold text-forestgreen transition-colors hover:bg-forestgreen/20"
+              >
+                <ShieldCheck className="h-4 w-4" /> Tandai Tugas Instansi Ini Selesai
+              </button>
+            )}
+          </div>
+
+          {finished && (
+            <div className="mt-3 rounded-xl bg-forestgreen/10 px-3 py-2.5 text-xs text-forestgreen">
+              <p className="flex items-center gap-1.5 font-bold">
+                <ShieldCheck className="h-4 w-4" /> Tugas instansi ini selesai{" "}
+                {formatDateTime(own.finishedAt)}
+              </p>
+              <button
+                type="button"
+                onClick={onReopen}
+                className="mt-1 underline underline-offset-2 hover:text-forestgreen-dark"
+              >
+                Buka kembali tanggapan
+              </button>
+            </div>
+          )}
+
+          <ResponseTimeline response={own} />
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Chip tahap tanggapan satu instansi: Belum direspons s.d. Selesai. */
+function StageChip({ response }) {
+  let stage = "Belum direspons";
+  let cls = "bg-slate-100 text-slate-500";
+  if (response.finishedAt) {
+    stage = "Selesai";
+    cls = "bg-forestgreen/10 text-forestgreen";
+  } else if (response.dispatchedAt) {
+    stage = "Diterjunkan";
+    cls = "bg-primary/10 text-primary";
+  } else if (response.receivedAt || response.received) {
+    stage = "Diterima";
+    cls = "bg-goldyellow/20 text-yellow-700";
+  }
+  return (
+    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${cls}`}>
+      {stage}
+    </span>
+  );
+}
+
+/** Panel tanggapan instansi pasangan — hanya baca, tidak bisa diedit. */
+function OtherResponsePanel({ report, otherAgency }) {
+  const own = responseFor(report, otherAgency);
+
+  return (
+    <section className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+      <header className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-extrabold text-slate-600">
+          Tanggapan {RESPONSE_AGENCIES[otherAgency]}
+        </h3>
+        <StageChip response={own} />
+      </header>
+
+      {!(own.receivedAt || own.received) ? (
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+          <Clock className="h-3.5 w-3.5" /> Belum ada tanggapan — menunggu konfirmasi.
+        </p>
+      ) : (
+        <div className="mt-2 grid gap-1.5 text-xs text-slate-600">
+          <p>
+            <span className="font-bold text-slate-700">Diterima:</span>{" "}
+            {formatDateTime(own.receivedAt)}
+            {own.receivedBy ? ` — ${own.receivedBy}` : ""}
+          </p>
+          <p>
+            <span className="font-bold text-slate-700">Anggota:</span>{" "}
+            {own.personnel ? `${own.personnel} orang` : "-"}
+          </p>
+          <div>
+            <span className="font-bold text-slate-700">Peralatan:</span>
+            <div className="mt-1">
+              <EquipmentSummary equipment={own.equipment} />
+            </div>
+          </div>
+          {own.note && (
+            <p className="rounded-lg bg-white px-2.5 py-1.5 text-[11px] italic text-slate-500">
+              “{own.note}”
+            </p>
+          )}
+          <p>
+            <span className="font-bold text-slate-700">Diterjunkan:</span>{" "}
+            {own.dispatchedAt ? formatDateTime(own.dispatchedAt) : "-"}
+          </p>
+          {own.finishedAt && (
+            <p className="font-bold text-forestgreen">
+              Tugas selesai {formatDateTime(own.finishedAt)}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Daftar alat ringkas (.nama × jumlah) — dipakai panel read-only. */
+function EquipmentSummary({ equipment }) {
+  if (!equipment || equipment.length === 0) {
+    return <span className="text-xs text-slate-400">Tidak mencantumkan alat.</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {equipment.map((item) => (
+        <span
+          key={item.name}
+          className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700"
+        >
+          {item.name} ×{item.qty ?? 1}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Riwayat aksi tanggapan instansi sendiri pada modal. */
+function ResponseTimeline({ response }) {
+  const events = [
+    response.receivedAt && {
+      label: "Laporan diterima",
+      detail: response.receivedBy ? `oleh ${response.receivedBy}` : "",
+      time: response.receivedAt,
+    },
+    response.dispatchedAt && {
+      label: "Tim & peralatan diterjunkan",
+      detail: `${response.personnel || 0} anggota · ${totalEquipmentUnits(
+        response.equipment,
+      )} unit alat`,
+      time: response.dispatchedAt,
+    },
+    response.finishedAt && {
+      label: "Tugas instansi ini selesai",
+      detail: "",
+      time: response.finishedAt,
+    },
+  ].filter(Boolean);
+  if (events.length === 0) return null;
+
+  return (
+    <div className="mt-4 border-t border-slate-200 pt-3">
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+        Riwayat aksi
+      </p>
+      <ol className="grid gap-1.5">
+        {events.map((event, index) => (
+          <li
+            key={`${event.label}-${index}`}
+            className="flex flex-wrap items-center gap-2 text-xs text-slate-600"
+          >
+            <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="font-semibold text-slate-700">{event.label}</span>
+            {event.detail && <span className="text-slate-400">— {event.detail}</span>}
+            <span className="ml-auto whitespace-nowrap text-slate-400">
+              {formatTime(event.time)}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/** Input angka dengan tombol +/− (anggota & jumlah alat). */
+function NumberStepper({ value, onChange, compact = false, max = 500 }) {
+  const num = Number(value) || 0;
+  const set = (next) =>
+    onChange(Math.min(max, Math.max(compact ? 1 : 0, Math.round(next))));
+  const styles = compact
+    ? {
+        wrap: "flex h-8 items-center rounded-lg border border-slate-200 bg-white",
+        btn: "h-full w-7 text-slate-500 hover:text-primary",
+        input:
+          "w-8 border-x border-slate-200 text-center text-xs font-bold text-slate-800 outline-none",
+      }
+    : {
+        wrap: "flex h-11 items-center rounded-xl border-2 border-slate-200 bg-white",
+        btn: "h-full w-10 text-slate-500 hover:text-primary",
+        input:
+          "w-14 border-x border-slate-200 text-center text-base font-bold text-slate-800 outline-none",
+      };
+
+  return (
+    <div className={`shrink-0 ${styles.wrap}`}>
+      <button
+        type="button"
+        aria-label="Kurangi"
+        onClick={() => set(num - 1)}
+        className={styles.btn}
+      >
+        <Minus className="mx-auto h-4 w-4" />
+      </button>
+      <input
+        type="number"
+        min="0"
+        inputMode="numeric"
+        value={num}
+        onChange={(e) => set(Number(e.target.value))}
+        className={styles.input}
+      />
+      <button
+        type="button"
+        aria-label="Tambah"
+        onClick={() => set(num + 1)}
+        className={styles.btn}
+      >
+        <Plus className="mx-auto h-4 w-4" />
+      </button>
     </div>
   );
 }

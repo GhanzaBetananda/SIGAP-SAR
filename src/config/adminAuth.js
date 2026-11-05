@@ -26,6 +26,7 @@ export const ADMIN_ACCOUNTS = [
 ];
 
 const AGENCY_SESSION_KEY = "sigapsar_admin_agency";
+const AGENCY_USER_KEY = "sigapsar_admin_user";
 
 export const AGENCY_LABELS = {
   basarnas: "BASARNAS",
@@ -50,10 +51,20 @@ export function adminLogin(username, password, agency) {
   if (!account) return null;
   try {
     sessionStorage.setItem(AGENCY_SESSION_KEY, account.agency);
+    sessionStorage.setItem(AGENCY_USER_KEY, account.username);
   } catch {
     /* storage nonaktif — sesi tetap berlaku selama tab hidup */
   }
   return account.agency;
+}
+
+/** Username admin yang sedang login (pencatat tanggapan), atau "". */
+export function getAdminUsername() {
+  try {
+    return sessionStorage.getItem(AGENCY_USER_KEY) ?? "";
+  } catch {
+    return "";
+  }
 }
 
 /** Agency yang sedang login pada tab ini, atau null. */
@@ -70,6 +81,7 @@ export function getAdminAgency() {
 export function adminLogout() {
   try {
     sessionStorage.removeItem(AGENCY_SESSION_KEY);
+    sessionStorage.removeItem(AGENCY_USER_KEY);
   } catch {
     /* abaikan */
   }
