@@ -15,14 +15,13 @@ import { validatePanicReport, validateInitialReport } from "../utils/validation.
 import { calculateDistances } from "../utils/distanceCalculator.js";
 import { getWhatsAppTargets, buildSummaryText, REPORTER_CATEGORIES, escapeHtml } from "../utils/whatsappGenerator.js";
 import { isFireIncident } from "../data/incidentTypes.js";
-import { Lock, Send, UserRound } from "lucide-react";
+import { Lock, Send, UserRound, CheckCircle2 } from "lucide-react";
 import { generateTicketId } from "../utils/tickets.js";
 
 export default function PanicReport() {
   const { session } = useAuth();
   const { report, updateReport, saveReportLocally } = useReport();
   const [errors, setErrors] = useState({});
-  const [waTargets, setWaTargets] = useState([]);
 
   const fire = isFireIncident(report.classification);
 
@@ -31,6 +30,22 @@ export default function PanicReport() {
     () => calculateDistances(report, fire),
     [report, fire],
   );
+
+  // Tautan WA diturunkan dari laporan (bukan state) agar tetap tampil
+  // meski halaman di-refresh setelah submit.
+  const waTargets = useMemo(
+    () => (report.submittedAt ? getWhatsAppTargets(report, distances) : []),
+    [report, distances],
+  );
+  // Catatan tautan WA yang sudah dibuka petugas (tersimpan di laporan)
+  const waOpened = report.waOpened ?? [];
+  const distributionDone =
+    waTargets.length > 0 && waTargets.every((target) => waOpened.includes(target.id));
+
+  function markWaOpened(targetId) {
+    if (waOpened.includes(targetId)) return;
+    updateReport({ waOpened: [...waOpened, targetId] });
+  }
 
   function handleSubmit() {
     // 1. Validasi identitas pelapor (dari akun) + detail kejadian & lokasi
@@ -91,10 +106,10 @@ export default function PanicReport() {
       });
       updateReport({ ticketId, submittedAt: new Date().toISOString() });
 
-      // 4. Siapkan tautan WhatsApp sesuai klasifikasi kejadian
-      const targets = getWhatsAppTargets(report, distances);
-      setWaTargets(targets);
+      // 4. Tautan WhatsApp disiapkan sesuai klasifikasi kejadian —
+      //    tampil di bawah (diturunkan dari report.submittedAt)
       setErrors({});
+      const targets = getWhatsAppTargets(report, distances);
 
       Swal.fire({
         icon: "success",
@@ -108,7 +123,11 @@ export default function PanicReport() {
 
   return (
     <Layout>
-      <Stepper current={report.submittedAt ? 3 : 2} />
+      <Stepper
+        current={
+          distributionDone ? 4 : report.submittedAt ? 3 : 2
+        }
+      />
 
       <div className="mt-6 space-y-4">
         {/* Identitas pelapor — otomatis dari data akun yang login */}
@@ -196,10 +215,17 @@ export default function PanicReport() {
         {/* Distribusi WhatsApp muncul setelah submit */}
         {report.submittedAt && waTargets.length > 0 && (
           <section className="rounded-2xl border border-primary/15 bg-primary p-5 text-white shadow-sm sm:p-6">
-            <h2 className="mb-1 flex items-center gap-2 text-lg font-bold">
-              <Send className="h-5 w-5 text-fireorange" />
-              Distribusi Laporan WhatsApp
-            </h2>
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-lg font-bold">
+                <Send className="h-5 w-5 text-fireorange" />
+                Distribusi Laporan WhatsApp
+              </h2>
+              {distributionDone && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-forestgreen px-3 py-1 text-[11px] font-bold">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Distribusi selesai
+                </span>
+              )}
+            </div>
             <p className="mb-4 text-sm text-white/80">
               Buka setiap tautan berikut lalu tekan tombol kirim di aplikasi WhatsApp.
               Sistem tidak menganggap laporan terkirim hanya karena tautan dibuka.
@@ -212,9 +238,18 @@ export default function PanicReport() {
                   href={target.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex min-h-[56px] items-center justify-between gap-3 rounded-xl bg-fireorange px-5 py-4 font-bold text-white transition-colors hover:bg-fireorange active:scale-[0.97] active:bg-fireorange"
+                  onClick={() => markWaOpened(target.id)}
+                  className={`flex min-h-[56px] items-center justify-between gap-3 rounded-xl px-5 py-4 font-bold text-white transition-colors active:scale-[0.97]
+                    ${waOpened.includes(target.id)
+                      ? "bg-forestgreen hover:brightness-95"
+                      : "bg-fireorange hover:bg-fireorange active:bg-fireorange"}`}
                 >
-                  <span>{target.label}</span>
+                  <span className="flex items-center gap-2">
+                    {waOpened.includes(target.id) && (
+                      <CheckCircle2 className="h-5 w-5 shrink-0" />
+                    )}
+                    {target.label}
+                  </span>
                   <span className="hidden truncate font-mono text-xs opacity-80 sm:block">
                     {`+${target.number}`}
                   </span>
