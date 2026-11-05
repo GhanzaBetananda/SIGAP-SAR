@@ -58,6 +58,7 @@ import {
   totalEquipmentUnits,
 } from "../utils/reportResponses.js";
 import { EQUIPMENT_PRESETS } from "../data/responsePresets.js";
+import { nearestReadyStaff, READY_TTL_MS } from "../utils/sarReadiness.js";
 
 const LOGOS_BASARNAS = [
   { src: "/456.png", alt: "Logo 456" },
@@ -1040,6 +1041,11 @@ function ReportResponseModal({
             ))}
           </dl>
 
+          {/* Petugas SAR siap-siap berdasarkan jarak ke TKP (hanya BASARNAS) */}
+          {agency === "basarnas" && report.latitude != null && (
+            <NearbyReadyStaff report={report} />
+          )}
+
           <div className="mt-3 flex flex-wrap gap-2">
             {report.photoUrl && (
               <a
@@ -1357,9 +1363,63 @@ function OwnResponsePanel({
   );
 }
 
+/**
+ * Daftar pegawai SAR berstatus SIAP, diurutkan jarak terdekat ke TKP
+ * laporan. Tombol "Hubungi via WA" sengaja TIDAK disediakan — koordinator
+ * menghubungi petugas di luar website; panel hanya papan jarak & status.
+ */
+function NearbyReadyStaff({ report }) {
+  const staff = nearestReadyStaff(report.latitude, report.longitude);
+
+  return (
+    <section className="mt-3 rounded-2xl border-2 border-goldyellow/40 bg-goldyellow/5 p-4">
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-extrabold text-slate-700">
+          Petugas TERDEKAT yang SIAP Bantu
+        </h3>
+        <span className="rounded-full bg-goldyellow/25 px-2.5 py-1 text-[11px] font-bold text-yellow-700">
+          {staff.length} petugas siap
+        </span>
+      </header>
+      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+        Status siap ({Math.round(READY_TTL_MS / 3600000)} jam sejak pegawai menekan
+        tombol) dan diurutkan dari jarak terdekat ke TKP. Hubungi petugas langsung
+        di luar aplikasi ini.
+      </p>
+
+      {staff.length === 0 ? (
+        <p className="mt-3 rounded-xl bg-white px-3 py-2.5 text-xs text-slate-500">
+          Belum ada pegawai SAR yang menandai dirinya siap. Pegawai dapat menekan
+          "Saya Siap Membantu" di aplikasi pelapor.
+        </p>
+      ) : (
+        <ol className="mt-3 grid gap-1.5">
+          {staff.map((person, index) => (
+            <li
+              key={person.username}
+              className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white">
+                {index + 1}
+              </span>
+              <span className="font-bold text-slate-800">{person.name}</span>
+              <span className="ml-auto font-bold text-primary">
+                {formatDistanceKm(person.distanceKm)}
+              </span>
+              <span className="flex w-full items-center gap-1 text-[11px] text-slate-400 sm:w-auto">
+                <CheckCircle2 className="h-3 w-3 text-forestgreen" />
+                siap sejak {formatTime(person.checkedInAt)}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
 /** Chip tahap tanggapan satu instansi: Belum direspons s.d. Selesai. */
-function StageChip({ response }) {
-  let stage = "Belum direspons";
+function StageChip({ response }) {  let stage = "Belum direspons";
   let cls = "bg-slate-100 text-slate-500";
   if (response.finishedAt) {
     stage = "Selesai";

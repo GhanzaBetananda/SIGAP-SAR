@@ -1,15 +1,20 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import Layout from "../components/Layout.jsx";
 import PanicButton from "../components/PanicButton.jsx";
 import Stepper from "../components/Stepper.jsx";
 import { useReport } from "../context/useReport.js";
 import { useAuth } from "../context/AuthProvider.jsx";
 import { ReportHistorySection } from "../components/ReportHistorySection.jsx";
+import SarDutyBoard from "../components/SarDutyBoard.jsx";
+import { readyRecord, setReady, READY_TTL_MS } from "../utils/sarReadiness.js";
 import {
   AlertTriangle,
   ClipboardList,
   LifeBuoy,
+  MapPin,
   Mic,
+  RefreshCw,
   Send,
 } from "lucide-react";
 
@@ -71,6 +76,14 @@ export default function Home() {
         )}
       </section>
 
+      {/* Kesiapan & papan tugas — hanya untuk pegawai BASARNAS */}
+      {session.reporterCategory === "pegawai_basarnas" && (
+        <div className="mt-6 grid gap-4">
+          <SarReadinessCard session={session} />
+          <SarDutyBoard session={session} />
+        </div>
+      )}
+
       {/* Riwayat & status laporan milik akun ini */}
       <ReportHistorySection username={session.username} />
 
@@ -109,4 +122,134 @@ function StepCard({ icon, title, items }) {  return (
       </ul>
     </div>
   );
+}
+
+/**
+ * Kartu kesiapan pegawai BASARNAS: tekan "Saya Siap Membantu" untuk
+ * merekam lokasi sendiri sekali (opsi GPS perangkat). Panel admin hanya
+ * membaca daftar ini — koordinator menghubungi petugas di luar website.
+ */
+function SarReadinessCard({ session }) {
+  const [state, setState] = useState(() => {
+    const record = readyRecord(session.username);
+    return { ready: Boolean(record), checkedInAt: record?.checkedInAt ?? null };
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function refreshFromStore() {
+    const record = readyRecord(session.username);
+    setState({ ready: Boolean(record), checkedInAt: record?.checkedInAt ?? null });
+  }
+
+  function handleClick() {
+    if (state.ready) {
+      // Perbarui lokasi (ambil ulang GPS) — tombol utama saat sudah siap
+      captureLocation();
+      return;
+    }
+
+    captureLocation();
+  }
+
+  function captureLocation() {
+    // Minta GPS perangkat sekali saat petugas menyatakan/memperbarui siap
+    if (!navigator.geolocation) {
+      setError("Perangkat tidak mendukung fitur lokasi.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setReady(session.username, session.name, {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        refreshFromStore();
+        setBusy(false);
+      },
+      (geoError) => {
+        setBusy(false);
+        setError(
+          geoError.code === geoError.PERMISSION_DENIED
+            ? "Izin lokasi ditolak — aktifkan izin lokasi pada browser untuk menyatakan siap."
+            : "Lokasi tidak dapat diambil. Coba lagi atau gunakan area terbuka.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  }
+
+  return (
+    <section
+      className={`rounded-2xl border-2 p-5 shadow-sm sm:p-6 ${
+        state.ready ? "border-forestgreen/40 bg-forestgreen/5" : "border-slate-200/80 bg-white"
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <MapPin className={`h-5 w-5 ${state.ready ? "text-forestgreen" : "text-primary"}`} />
+            Kesiapan Membantu Penyelamatan
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {state.ready
+              ? `Anda SIAP membantu — lokasi terekam ${
+                  state.checkedInAt ? formatClock(state.checkedInAt) : ""
+                }. Status berlaku ±${Math.round(READY_TTL_MS / 3600000)} jam sebelum kadaluarsa.`
+              : "Nyatakan status Anda agar muncul pada daftar petugas terdekat saat ada laporan."}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={busy}
+          className={`flex h-12 items-center gap-2 rounded-xl px-5 text-base font-bold text-white transition-all active:scale-[0.97] disabled:opacity-60 ${
+            state.ready
+              ? "bg-slate-600 hover:bg-slate-700"
+              : "bg-forestgreen hover:brightness-110"
+          }`}
+        >
+          {busy ? (
+            "Mengambil lokasi..."
+          ) : state.ready ? (
+            <>
+              <RefreshCw className="h-5 w-5" /> Perbarui Lokasi
+            </>
+          ) : (
+            <>
+              <MapPin className="h-5 w-5" /> Saya Siap Membantu
+            </>
+          )}
+        </button>
+      </div>
+
+      {error && (
+        <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600">
+          {error}
+        </p>
+      )}
+      {state.ready && (
+        <button
+          type="button"
+          onClick={() => {
+            setReady(session.username, session.name, null);
+            refreshFromStore();
+          }}
+          className="mt-2 text-xs font-semibold text-slate-500 underline underline-offset-2 hover:text-red-600"
+        >
+          Saya sudah tidak siap (hapus lokasi saya)
+        </button>
+      )}
+      <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
+        Lokasi hanya direkam saat Anda menekan tombol ini — tidak dipantau terus-menerus.
+      </p>
+    </section>
+  );
+}
+
+function formatClock(iso) {
+  return new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 }
