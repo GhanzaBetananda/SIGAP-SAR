@@ -23,88 +23,145 @@ export default function Home() {
   const { report } = useReport();
   const { session } = useAuth();
 
+  // Tab tampilan — hanya untuk pegawai BASARNAS: "Pelaporan" (alur
+  // pelapor biasa) vs "Siaga" (ketersediaan + papan tugas).
+  const isSarStaff = session.reporterCategory === "pegawai_basarnas";
+  const [tab, setTab] = useState("pelaporan");
+
+  function switchTab(next) {
+    setTab(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function handlePanicPress() {
     // Pelapor sudah login (identitas dari akun) — langsung ke halaman panic
     navigate("/panic");
   }
 
+  // Pelaporan selalu tampil; tab "Siaga" hanya berlaku bagi pegawai SAR
+  const showSiaga = isSarStaff && tab === "siaga";
+
   return (
     <Layout>
-      <Stepper current={1} />
-
-      <section className="mt-6 text-center">
-        <p className="mx-auto flex max-w-md items-start gap-2 rounded-xl border-2 border-fireorange/25 bg-fireorange/10 p-3 text-left text-xs text-fireorange-dark">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          Gunakan hanya pada kejadian darurat nyata. Seluruh informasi awal wajib diisi
-          sebelum laporan dapat dikirim.
-        </p>
-
-        {/* Baris logo instansi (urutan: 456, 472, BASARNAS) */}
-        <div className="mt-6 flex items-center justify-center gap-4">
-          {[
-            { src: "/456.png", alt: "Logo 456" },
-            { src: "/472.png", alt: "Logo 472" },
-            { src: "/BASARNAS.png", alt: "Logo BASARNAS" },
-          ].map((logo) => (
-            <img
-              key={logo.src}
-              src={logo.src}
-              alt={logo.alt}
-              className="h-14 w-14 rounded-full bg-white object-contain p-1 shadow-md ring-1 ring-slate-200 sm:h-16 sm:w-16"
-            />
-          ))}
+      {/* Pemilih tampilan — hanya untuk pegawai BASARNAS */}
+      {isSarStaff && (
+        <div
+          role="tablist"
+          aria-label="Tampilan akun pegawai"
+          className="mt-4 grid grid-cols-2 gap-1.5 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-sm"
+        >
+          <TabButton
+            active={!showSiaga}
+            onClick={() => switchTab("pelaporan")}
+            icon={<ClipboardList className="h-4 w-4" />}
+            label="Pelaporan"
+          />
+          <TabButton
+            active={showSiaga}
+            onClick={() => switchTab("siaga")}
+            icon={<MapPin className="h-4 w-4" />}
+            label="Siaga"
+          />
         </div>
+      )}
 
-        <h1 className="mt-5 text-3xl font-extrabold leading-tight text-slate-900 sm:text-4xl">
-          Melapor dari TKP
-        </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-          Login sebagai akun Anda, lengkapi detail kejadian, rekam suara, lalu laporan
-          disiapkan untuk BASARNAS dan Manggala Agni melalui WhatsApp sesuai klasifikasi.
-        </p>
-
-        <div className="my-8 flex justify-center">
-          <PanicButton onClick={handlePanicPress} />
-        </div>
-
-        {report.submittedAt && (
-          <p className="mb-6 rounded-xl bg-forestgreen/10 p-3 text-sm font-semibold text-forestgreen">
-            {report.ticketId
-              ? `Laporan tiket ${report.ticketId} telah disiapkan — lakukan kirim manual pada tautan WhatsApp.`
-              : "Laporan terakhir telah disiapkan — kirim manual pada tautan WhatsApp."}
-          </p>
-        )}
-      </section>
-
-      {/* Kesiapan & papan tugas — hanya untuk pegawai BASARNAS */}
-      {session.reporterCategory === "pegawai_basarnas" && (
+      {showSiaga ? (
+        /* Tab SIAGA: ketersediaan + papan laporan untuk petugas */
         <div className="mt-6 grid gap-4">
           <SarReadinessCard session={session} />
           <SarDutyBoard session={session} />
         </div>
+      ) : (
+        <>
+          <Stepper current={1} />
+
+          <section className="mt-6 text-center">
+            <p className="mx-auto flex max-w-md items-start gap-2 rounded-xl border-2 border-fireorange/25 bg-fireorange/10 p-3 text-left text-xs text-fireorange-dark">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              Gunakan hanya pada kejadian darurat nyata. Seluruh informasi awal wajib diisi
+              sebelum laporan dapat dikirim.
+            </p>
+
+            {/* Baris logo instansi (urutan: 456, 472, BASARNAS) */}
+            <div className="mt-6 flex items-center justify-center gap-4">
+              {[
+                { src: "/456.png", alt: "Logo 456" },
+                { src: "/472.png", alt: "Logo 472" },
+                { src: "/BASARNAS.png", alt: "Logo BASARNAS" },
+              ].map((logo) => (
+                <img
+                  key={logo.src}
+                  src={logo.src}
+                  alt={logo.alt}
+                  className="h-14 w-14 rounded-full bg-white object-contain p-1 shadow-md ring-1 ring-slate-200 sm:h-16 sm:w-16"
+                />
+              ))}
+            </div>
+
+            <h1 className="mt-5 text-3xl font-extrabold leading-tight text-slate-900 sm:text-4xl">
+              Melapor dari TKP
+            </h1>
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+              Login sebagai akun Anda, lengkapi detail kejadian, rekam suara, lalu laporan
+              disiapkan untuk BASARNAS dan Manggala Agni melalui WhatsApp sesuai klasifikasi.
+            </p>
+
+            <div className="my-8 flex justify-center">
+              <PanicButton onClick={handlePanicPress} />
+            </div>
+
+            {report.submittedAt && (
+              <p className="mb-6 rounded-xl bg-forestgreen/10 p-3 text-sm font-semibold text-forestgreen">
+                {report.ticketId
+                  ? `Laporan tiket ${report.ticketId} telah disiapkan — lakukan kirim manual pada tautan WhatsApp.`
+                  : "Laporan terakhir telah disiapkan — kirim manual pada tautan WhatsApp."}
+              </p>
+            )}
+          </section>
+
+          {/* Riwayat & status laporan milik akun ini */}
+          <ReportHistorySection username={session.username} />
+
+          <section className="mt-6 grid gap-3 sm:grid-cols-3">
+            <StepCard
+              icon={<ClipboardList className="h-6 w-6" />}
+              title="1. Detail Kejadian"
+              items={["Klasifikasi & jumlah korban", "GPS TKP otomatis", "Jarak ke kantor instansi"]}
+            />
+            <StepCard
+              icon={<Mic className="h-6 w-6" />}
+              title="2. Panic Button"
+              items={["Rekam Voice Note (opsional)", "Kronologi detail (opsional)", "Ringkasan sebelum kirim"]}
+            />
+            <StepCard
+              icon={<Send className="h-6 w-6" />}
+              title="3. Distribusi"
+              items={["Kebakaran: BASARNAS + Manggala Agni", "Non-kebakaran: BASARNAS", "Tautan wa.me siap kirim"]}
+            />
+          </section>
+        </>
       )}
-
-      {/* Riwayat & status laporan milik akun ini */}
-      <ReportHistorySection username={session.username} />
-
-      <section className="grid gap-3 sm:grid-cols-3">
-        <StepCard
-          icon={<ClipboardList className="h-6 w-6" />}
-          title="1. Detail Kejadian"
-          items={["Klasifikasi & jumlah korban", "GPS TKP otomatis", "Jarak ke kantor instansi"]}
-        />
-        <StepCard
-          icon={<Mic className="h-6 w-6" />}
-          title="2. Panic Button"
-          items={["Rekam Voice Note (opsional)", "Kronologi detail (opsional)", "Ringkasan sebelum kirim"]}
-        />
-        <StepCard
-          icon={<Send className="h-6 w-6" />}
-          title="3. Distribusi"
-          items={["Kebakaran: BASARNAS + Manggala Agni", "Non-kebakaran: BASARNAS", "Tautan wa.me siap kirim"]}
-        />
-      </section>
     </Layout>
+  );
+}
+
+/** Tombol tab pilih tampilan (Pelaporan / Siaga). */
+function TabButton({ active, onClick, icon, label }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold transition-colors ${
+        active
+          ? "bg-primary text-white shadow-sm"
+          : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 
@@ -143,12 +200,7 @@ function SarReadinessCard({ session }) {
   }
 
   function handleClick() {
-    if (state.ready) {
-      // Perbarui lokasi (ambil ulang GPS) — tombol utama saat sudah siap
-      captureLocation();
-      return;
-    }
-
+    // Tombol utama: menyatakan siap atau memperbarui lokasi
     captureLocation();
   }
 
