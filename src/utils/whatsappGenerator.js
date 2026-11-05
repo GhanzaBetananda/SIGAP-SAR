@@ -36,12 +36,6 @@ function googleMapsLink(report) {
   return `https://www.google.com/maps?q=${report.latitude},${report.longitude}`;
 }
 
-function formatDuration(totalSeconds) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
 /**
  * Menyusun isi pesan WhatsApp secara dinamis berdasarkan data laporan.
  * @param {object} report data laporan
@@ -82,15 +76,9 @@ export function buildReportMessage(report, distances) {
     "",
     "DETAIL KEJADIAN",
     report.detail?.trim() || "-",
-    "",
-    "LAMPIRAN",
-    report.voiceNoteUrl
-      ? `Voice note tersedia — durasi ${formatDuration(report.voiceNoteDuration)}. Berkas voice note akan dilampirkan melalui sistem BASARNAS (integrasi backend).`
-      : "Voice note tidak tersedia.",
-    report.photoUrl
-      ? "Foto TKP tersedia (akan dilampirkan melalui sistem BASARNAS — integrasi backend)."
-      : "Foto TKP tidak diunggah.",
   );
+  // Catatan: foto TKP & voice note tidak disertakan dalam pesan WA —
+  // wa.me tidak bisa membawa berkas, keduanya hanya tersedia di website.
 
   return lines.join("\n");
 }
