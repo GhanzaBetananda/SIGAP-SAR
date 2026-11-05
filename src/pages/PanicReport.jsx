@@ -175,9 +175,15 @@ export default function PanicReport() {
         <VoiceRecorder errors={errors} />
 
         <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="mb-1 text-lg font-bold text-slate-900">Detail Kejadian</h2>
+          <h2 className="mb-1 flex flex-wrap items-center gap-2 text-lg font-bold text-slate-900">
+            Detail Kejadian
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              Opsional
+            </span>
+          </h2>
           <p className="mb-3 text-sm text-slate-500">
-            Jelaskan kronologi dan kondisi di TKP secara manual.
+            Jelaskan kronologi dan kondisi di TKP secara manual. Laporan tetap bisa
+            dikirim tanpa detail ini.
           </p>
           <textarea
             rows={5}

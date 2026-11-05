@@ -116,9 +116,14 @@ export default function VoiceRecorder({ errors = {} }) {
 
   return (
     <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-      <h2 className="mb-1 text-lg font-bold text-slate-900">Voice Note (Laporan Suara)</h2>
+      <h2 className="mb-1 text-lg font-bold text-slate-900">
+        Voice Note (Laporan Suara)
+        <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          Opsional
+        </span>
+      </h2>
       <p className="mb-4 text-sm text-slate-500">
-        Rekam penjelasan singkat kondisi di TKP. Hasil rekaman menjadi bagian dari laporan.
+        Rekam penjelasan singkat kondisi di TKP. Laporan tetap bisa dikirim tanpa voice note.
       </p>
 
       <div className="flex flex-wrap items-center gap-3">

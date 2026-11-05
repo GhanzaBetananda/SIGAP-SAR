@@ -83,7 +83,7 @@ export default function Home() {
         <StepCard
           icon={<Mic className="h-6 w-6" />}
           title="2. Panic Button"
-          items={["Rekam Voice Note", "Kronologi detail", "Ringkasan sebelum kirim"]}
+          items={["Rekam Voice Note (opsional)", "Kronologi detail (opsional)", "Ringkasan sebelum kirim"]}
         />
         <StepCard
           icon={<Send className="h-6 w-6" />}

@@ -66,19 +66,14 @@ export function validateInitialReport(report) {
 }
 
 /**
- * Validasi halaman Panic Button (voice note & detail kejadian).
+ * Validasi halaman Panic Button.
+ * Voice note (laporan suara) & detail/kronologi kejadian kini OPSIONAL —
+ * tidak memblokir pengiriman laporan. Fungsi tetap disimpan agar
+ * struktur validasi per halaman mudah diperluas untuk field baru.
  * @returns {{valid:boolean, errors:Record<string,string>}}
  */
-export function validatePanicReport(report) {
+export function validatePanicReport() {
   const errors = {};
-
-  if (!report.voiceNoteUrl) {
-    errors.voiceNote = "Laporan suara (Voice Note) wajib direkam.";
-  }
-
-  if (!report.detail || report.detail.trim().length === 0) {
-    errors.detail = "Detail atau kronologi kejadian wajib diisi.";
-  }
 
   return { valid: Object.keys(errors).length === 0, errors };
 }
