@@ -8,16 +8,32 @@
 //        laporan-bencana_alam_kebakaran,
 //        laporan-bencana_alam_non_kebakaran,
 //        laporan-lainnya (klasifikasi tidak dikenal)
-//      PELAPOR tidak dibuatkan tab sendiri — kategorinya tersimpan
-//      di kolom reporterCategory (pegawai_basarnas / potensi_sar /
-//      kampung_rescue) di setiap baris.
+//      Nama-nama kolom memakai BAHASA INDONESIA (lihat LAPORAN_COLUMNS).
+//      PELAPOR tidak dibuatkan tab sendiri — kategorinya tersimpan di
+//      kolom "kategoriPelapor". Untuk pelapor Kampung Rescue, desanya
+//      ikut menempel pada kategori, sehingga ada 2 kategori tambahan:
+//        pegawai_basarnas            (petugas SAR)
+//        potensi_sar
+//        kampung_rescue - kampung_mandar
+//        kampung_rescue - songgon
+//      Nama orangnya tersimpan sekadar di kolom "nama" (gabungan dari
+//      nama pegawai / potensi SAR / perwakilan kampung rescue).
 //      Di dalam tiap tab, baris urut waktu terbaru dulu.
-//   2. "siap" — status kesiapan pegawai SAR (lokasi "Saya Siap")
-// Tab + header dibuat OTOMATIS saat dipakai, ditab saja yang perlu.
+//   2. "siap" — status kesiapan pegawai SAR (kolom tetap bahasa
+//      Inggris karena datanya dikonsumsi langsung oleh frontend).
 //
-// Lampiran (foto TKP & voice note) berupa dataURL tidak disimpan
-// ke sel Sheet (limit 50 ribu karakter) — backend menebusnya menjadi
-// berkas di Google Drive dan menyimpan tautannya di sel.
+// KOLOM TAB LAPORAN (baris 1):
+//   nomorTiket, status, waktuKirim, kategoriPelapor, nama, wilayah,
+//   kejadian, jumlahKorban, latitude, longitude, detail,
+//   tautanVoiceNote, tautanFoto, jarak, tanggapan
+//
+// Penyederhanaan yang diterapkan (permintaan):
+//   - "nama"           = gabungan employeeName / potentialSarName /
+//                        kampungRescueName, dipilih sesuai kategori
+//   - "kategoriPelapor"= kampungRescueDesa dimasukkan ke sini
+//   - "jarak"          = km langsung, mis. "BASARNAS: 0.19 km | Manggala Agni: -"
+//   - tidak disimpan: reporterUsername, locationAccuracy, waOpened,
+//     tkpDistrict, kampungRescueDesa (melebur ke kategori)
 //
 // PROTOKOL API (semua via POST JSON):
 //   { "action": "ping" }
@@ -29,7 +45,6 @@
 // ============================================================
 
 var SHEET_SIAP = "siap";
-var SHEET_LEGACY = "laporan"; // tab lama (satu tab semua laporan) — dibaca saja
 var TAB_PREFIX = "laporan-";
 var TAB_FALLBACK = "laporan-lainnya";
 
@@ -43,33 +58,31 @@ var CLASSIFICATION_TABS = {
   bencana_alam_non_kebakaran: "laporan-bencana_alam_non_kebakaran",
 };
 
-// Urutan kolom tab laporan (dipakai di SEMUA tab laporan-*)
+// Urutan kolom tab laporan — BAHASA INDONESIA
 var LAPORAN_COLUMNS = [
-  "ticketId",
+  "nomorTiket",
   "status",
-  "submittedAt",
-  "reporterUsername",
-  "reporterCategory",
-  "employeeName",
-  "district",
-  "potentialSarName",
-  "kampungRescueDesa",
-  "kampungRescueName",
-  "classification",
-  "victimCount",
+  "waktuKirim",
+  "kategoriPelapor",
+  "nama",
+  "wilayah",      // region pelapor potensi SAR (kecamatan)
+  "kejadian",
+  "jumlahKorban",
   "latitude",
   "longitude",
-  "locationAccuracy",
-  "tkpDistrict",
   "detail",
-  "voiceNoteUrl",
-  "photoUrl",
-  "distances",
-  "responses",
-  "waOpened",
+  "tautanVoiceNote",
+  "tautanFoto",
+  "jarak",        // teks: "BASARNAS: 0.19 km | Manggala Agni: -"
+  "tanggapan",    // JSON dari {basarnas: {...}, manggala_agni: {...}}
 ];
-// Kolom berisi JSON (disimpan sebagai teks di sel)
-var LAPORAN_JSON_FIELDS = { distances: true, responses: true, waOpened: true };
+
+// Kolom yang boleh diubah lewat aksi updateLaporan:
+// kunci request (bahasa frontend) → kolom sheet (bahasa Indonesia)
+var PATCH_COLUMNS = {
+  status: "status",
+  responses: "tanggapan",
+};
 
 // Kedaluwarsa status siap (2 jam) — konsisten dengan sisi UI
 var READY_TTL_MS = 2 * 60 * 60 * 1000;
@@ -176,7 +189,8 @@ function headerIndex_(headers) {
 }
 
 function findRowByValue_(sheet, column, value) {
-  var colIndex = indexOf_(sheetHeaders_(sheet, []), column);
+  var headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  var colIndex = indexOf_(headers, column);
   if (colIndex === -1) return -1;
   var values = sheet.getRange(2, colIndex, Math.max(sheet.getLastRow() - 1, 0), 1).getValues();
   for (var i = 0; i < values.length; i++) {
@@ -196,15 +210,21 @@ function indexOf_(list, value) {
 // Laporan — tab per kejadian
 // ------------------------------------------------------------
 
-/** Semua tab laporan yang ada saat ini (prefiks laporan- + tab lama). */
+/**
+ * Semua tab laporan yang valid: nama diawali "laporan-" dan header
+ * baris 1-nya "nomorTiket" (format Indonesia). Tab berheading lama
+ * (bahasa Inggris) dilewati dengan aman — tak dibaca, tak ditulis.
+ */
 function reportSheets_() {
   var sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
   var result = [];
   for (var i = 0; i < sheets.length; i++) {
-    var name = String(sheets[i].getName());
-    if (name.indexOf(TAB_PREFIX) === 0 || name === SHEET_LEGACY) {
-      result.push(sheets[i]);
-    }
+    var sheet = sheets[i];
+    if (sheet.getLastRow() < 1) continue;
+    var name = String(sheet.getName());
+    if (name.indexOf(TAB_PREFIX) !== 0) continue;
+    if (String(sheet.getRange(1, 1).getValue()) !== "nomorTiket") continue;
+    result.push(sheet);
   }
   return result;
 }
@@ -214,35 +234,176 @@ function tabForClassification_(classification) {
   return CLASSIFICATION_TABS[String(classification || "")] || TAB_FALLBACK;
 }
 
-function rowToLaporan_(row, headers) {
-  var lap = {};
-  for (var c = 0; c < headers.length; c++) {
-    var value = row[c];
-    var key = String(headers[c]);
-    if (LAPORAN_JSON_FIELDS[key]) {
-      try {
-        value = value ? JSON.parse(value) : null;
-      } catch (e) {
-        /* sel bukan JSON valid — kirim apa adanya */
-      }
-    } else if (key === "latitude" || key === "longitude" || key === "locationAccuracy" || key === "victimCount") {
-      value = value === "" || value === null ? null : Number(value);
+/** Sheet laporan siap tulis; header Indonesia dipastikan ada. */
+function ensureLaporanSheet_(name) {
+  var sheet = sheetExists_(name)
+    ? SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name)
+    : null;
+  if (sheet && String(sheet.getRange(1, 1).getValue()) !== "nomorTiket") {
+    // bila tab hanya berisi header lama (tanpa data), ganti heading-nya;
+    // bila berisi data, minta dihapus manual agar tidak menimpa data
+    var hasData = sheet.getLastRow() > 1;
+    if (!hasData) {
+      sheet.getRange(1, 1, 1, LAPORAN_COLUMNS.length).setValues([LAPORAN_COLUMNS]);
+      sheet.setFrozenRows(1);
+      return sheet;
     }
-    lap[key] = value;
+    throw new Error(
+      "Tab '" + name + "' masih berheading lama (bahasa Inggris) dan berisi data. " +
+      "Hapus tab tersebut lalu kirim ulang laporan agar dibuat ulang dengan heading Indonesia."
+    );
+  }
+  if (!sheet) {
+    sheet = ensureSheet_(name, LAPORAN_COLUMNS);
+  }
+  return sheet;
+}
+
+function sheetExists_(name) {
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name) != null;
+}
+
+// --- Konversi isi → baris (Indonesia) dan sebaliknya -----------------
+
+/** Kategori pelapor; desa Kampung Rescue ikut menempel di sini. */
+function labelKategori_(lap) {
+  var dasar = String(lap.reporterCategory || "");
+  if (dasar === "kampung_rescue" && lap.kampungRescueDesa) {
+    // "Desa Kampung Mandar" / "Desa Songgon"
+    //   → "kampung_rescue - kampung_mandar" / "kampung_rescue - songgon"
+    var desa = String(lap.kampungRescueDesa).replace(/^desa\s+/i, "").trim();
+    var slug = desa.toLowerCase().replace(/\s+/g, "_");
+    return dasar + " - " + slug;
+  }
+  return dasar;
+}
+
+/** Baca kembali label kategori → {reporterCategory, kampungRescueDesa}. */
+function parseKategori_(value) {
+  var teks = String(value || "");
+  if (teks.indexOf("kampung_rescue") === 0 && teks.indexOf(" - ") !== -1) {
+    var slug = teks.slice(teks.indexOf(" - ") + 3)
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, function (c) { return c.toUpperCase(); })
+      .trim();
+    // "Kampung Mandar" / "Songgon" → sesuai nilai asli dropdown form
+    return { reporterCategory: "kampung_rescue", kampungRescueDesa: "Desa " + slug };
+  }
+  return { reporterCategory: teks, kampungRescueDesa: "" };
+}
+
+/** Nama pelapor umum: gabungan dari 3 kolom pelapor frontend. */
+function namaPelapor_(lap) {
+  return String(
+    lap.employeeName || lap.potentialSarName || lap.kampungRescueName || ""
+  );
+}
+
+/** Angka km → "0.19 km"; tak valid → "-". */
+function toKm_(angka) {
+  var n = Number(angka);
+  if (!Number.isFinite(n)) return "-";
+  return n.toFixed(2) + " km";
+}
+
+/** Objek jarak {basarnas, manggalaAgni} → teks km langsung. */
+function formatJarak_(distances) {
+  if (!distances) return "";
+  var isi = distances || {};
+  var b = Number.isFinite(Number(isi.basarnas)) ? toKm_(isi.basarnas) : "-";
+  var m = Number.isFinite(Number(isi.manggalaAgni)) ? toKm_(isi.manggalaAgni) : "-";
+  return "BASARNAS: " + b + " | Manggala Agni: " + m;
+}
+
+/** Teks km langsung → kembali objek jarak {basarnas, manggalaAgni}. */
+function parseJarak_(teks) {
+  var hasil = { basarnas: null, manggalaAgni: null };
+  var ambil = function (tanda) {
+    var ketemu = new RegExp(tanda + "\\s*:\\s*(-?\\d+(?:\\.\\d+)?)\\s*km\\b", "i")
+      .exec(String(teks || ""));
+    return ketemu ? Number(ketemu[1]) : null;
+  };
+  hasil.basarnas = ambil("BASARNAS");
+  hasil.manggalaAgni = ambil("Manggala\\s+Agni");
+  return hasil;
+}
+
+/** Laporan dari frontend (kunci EN) → baris kolom Indonesia. */
+function laporanToRow_(lap, headers) {
+  var isi = {
+    nomorTiket: lap.ticketId == null ? "" : lap.ticketId,
+    status: lap.status || "baru",
+    waktuKirim: lap.submittedAt == null ? "" : lap.submittedAt,
+    kategoriPelapor: labelKategori_(lap),
+    nama: namaPelapor_(lap),
+    wilayah: lap.district == null ? "" : lap.district,
+    kejadian: lap.classification == null ? "" : lap.classification,
+    jumlahKorban: lap.victimCount == null ? "" : lap.victimCount,
+    latitude: lap.latitude == null ? "" : lap.latitude,
+    longitude: lap.longitude == null ? "" : lap.longitude,
+    detail: lap.detail == null ? "" : lap.detail,
+    tautanVoiceNote: lap.voiceNoteUrl == null ? "" : lap.voiceNoteUrl,
+    tautanFoto: lap.photoUrl == null ? "" : lap.photoUrl,
+    jarak: formatJarak_(lap.distances),
+    tanggapan: lap.responses == null ? "" : JSON.stringify(lap.responses),
+  };
+  return headers.map(function (header) {
+    var value = isi[String(header)];
+    return value === undefined || value === null ? "" : value;
+  });
+}
+
+/** Baris kolom Indonesia → objek laporan (kunci EN, sesuai frontend). */
+function rowToLaporan_(row, headers) {
+  var sel = {};
+  for (var c = 0; c < headers.length; c++) {
+    sel[String(headers[c])] = row[c];
+  }
+
+  var kategori = parseKategori_(sel["kategoriPelapor"]);
+  var nama = String(sel["nama"] || "");
+
+  var lap = {
+    ticketId: sel["nomorTiket"] == null ? "" : sel["nomorTiket"],
+    status: sel["status"] || "baru",
+    submittedAt: sel["waktuKirim"] || null,
+    reporterCategory: kategori.reporterCategory,
+    classification: sel["kejadian"] || "",
+    detail: sel["detail"] == null ? "" : sel["detail"],
+    voiceNoteUrl: sel["tautanVoiceNote"] == null ? "" : sel["tautanVoiceNote"],
+    photoUrl: sel["tautanFoto"] == null ? "" : sel["tautanFoto"],
+  };
+
+  // Peta kembali nama SESUAI kategori agar UI menampilkannya benar
+  if (kategori.kampungRescueDesa) {
+    lap.kampungRescueDesa = kategori.kampungRescueDesa;
+    lap.kampungRescueName = nama;
+  } else if (lap.reporterCategory === "potensi_sar") {
+    lap.potentialSarName = nama;
+    lap.district = sel["wilayah"] == null ? "" : sel["wilayah"];
+  } else {
+    lap.employeeName = nama;
+  }
+
+  lap.victimCount = sel["jumlahKorban"] === "" || sel["jumlahKorban"] == null
+    ? null
+    : Number(sel["jumlahKorban"]);
+  lap.latitude = sel["latitude"] === "" || sel["latitude"] == null
+    ? null
+    : Number(sel["latitude"]);
+  lap.longitude = sel["longitude"] === "" || sel["longitude"] == null
+    ? null
+    : Number(sel["longitude"]);
+  lap.distances = parseJarak_(sel["jarak"]);
+  try {
+    lap.responses = sel["tanggapan"] ? JSON.parse(sel["tanggapan"]) : {};
+  } catch (e) {
+    lap.responses = {};
   }
   return lap;
 }
 
-function laporanToRow_(lap, headers) {
-  return headers.map(function (header) {
-    var value = lap[header];
-    if (LAPORAN_JSON_FIELDS[header]) {
-      return value == null ? "" : JSON.stringify(value === "" ? [] : value);
-    }
-    if (value === undefined || value === null) return "";
-    return value;
-  });
-}
+// --- Baca / tulis -------------------------------------------------------
 
 /** Semua laporan dari seluruh tab laporan-*. */
 function getLaporan_() {
@@ -250,8 +411,9 @@ function getLaporan_() {
   var sheets = reportSheets_();
   for (var i = 0; i < sheets.length; i++) {
     var sheet = sheets[i];
-    if (sheet.getLastRow() < 2) continue;
-    var headers = sheetHeaders_(sheet, LAPORAN_COLUMNS);
+    var headers = sheet
+      .getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1))
+      .getValues()[0];
     var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
     for (var r = 0; r < rows.length; r++) {
       items.push(rowToLaporan_(rows[r], headers));
@@ -260,21 +422,19 @@ function getLaporan_() {
   return { items: items };
 }
 
-/** Cari baris laporan berdasarkan ticketId di semua tab laporan. */
+/** Cari baris laporan berdasarkan nomorTiket di semua tab laporan. */
 function findLaporanRow_(ticketId) {
   var sheets = reportSheets_();
   for (var i = 0; i < sheets.length; i++) {
-    if (sheets[i].getLastRow() < 2) continue;
-    var rowIndex = findRowByValue_(sheets[i], "ticketId", ticketId);
+    var rowIndex = findRowByValue_(sheets[i], "nomorTiket", ticketId);
     if (rowIndex !== -1) return { sheet: sheets[i], rowIndex: rowIndex };
   }
   return null;
 }
 
 /**
- * Upsert laporan:
- *   - dipindahkan ke tab sesuai klasifikasi kejadiannya
- *   - dikelompokkan per kategori pelapor (regroupTab_)
+ * Upsert laporan: masuk ke tab kejadiannya, klasifikasi berubah →
+ * dipindah; tab baru otomatis dibuat dengan heading Indonesia.
  */
 function upsertLaporan_(lap) {
   // Lampiran dataURL ditebus ke Google Drive agar sel tidak bengkak
@@ -295,7 +455,6 @@ function upsertLaporan_(lap) {
   var existing = findLaporanRow_(lap.ticketId || "");
 
   if (existing && existing.sheet.getName() === targetName) {
-    // Tetap di tab yang benar — tulis ulang barisnya
     var headers = sheetHeaders_(existing.sheet, LAPORAN_COLUMNS);
     existing.sheet
       .getRange(existing.rowIndex, 1, 1, headers.length)
@@ -307,22 +466,22 @@ function upsertLaporan_(lap) {
     existing.sheet.deleteRow(existing.rowIndex);
   }
 
-  var sheet = ensureSheet_(targetName, LAPORAN_COLUMNS);
-  var headers2 = sheetHeaders_(sheet, LAPORAN_COLUMNS);
-  sheet.appendRow(laporanToRow_(lap, headers2));
+  var sheet = ensureLaporanSheet_(targetName);
+  var headersBaru = sheetHeaders_(sheet, LAPORAN_COLUMNS);
+  sheet.appendRow(laporanToRow_(lap, headersBaru));
   regroupTab_(sheet); // urutkan terbaru dulu
   return { ticketId: lap.ticketId, tab: targetName, rowIndex: null };
 }
 
 /**
  * Susun ulang baris tab laporan: urut waktu laporan terbaru dulu.
- * (Satu tab = satu kategori pelapor, jadi cukup urutkan per waktu.)
  * Tulis ulang hanya bila urutan benar-benar berubah (hemat kuota).
  */
 function regroupTab_(sheet) {
-  var headers = sheetHeaders_(sheet, LAPORAN_COLUMNS);
-  var index = headerIndex_(headers);
-  var timeCol = index["submittedAt"] || 3;
+  var headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  var idx = headerIndex_(headers);
+  var timeCol = idx["waktuKirim"];
+  if (!timeCol) return;
   var last = sheet.getLastRow();
   if (last < 2) return;
 
@@ -344,33 +503,34 @@ function regroupTab_(sheet) {
   }
 }
 
-/** Perbarui kolom laporan tertentu (status, responses, waOpened, ...). */
+/** Perbarui sebagian kolom laporan (hanya kolom di PATCH_COLUMNS). */
 function updateLaporan_(ticketId, patch) {
   var found = findLaporanRow_(ticketId || "");
   if (!found) throw new Error("Laporan tidak ditemukan: " + ticketId);
 
   var headers = sheetHeaders_(found.sheet, LAPORAN_COLUMNS);
-  var index = headerIndex_(headers);
-  var updated = {};
+  var idx = headerIndex_(headers);
+  var updated = [];
   Object.keys(patch).forEach(function (key) {
-    if (index[key]) {
+    var column = PATCH_COLUMNS[key];
+    if (column && idx[column]) {
       var value = patch[key];
-      if (LAPORAN_JSON_FIELDS[key]) {
-        value = value == null ? "" : JSON.stringify(value === "" ? [] : value);
+      if (key === "responses") {
+        value = value == null ? "" : JSON.stringify(value === "" ? {} : value);
       }
-      found.sheet.getRange(found.rowIndex, index[key]).setValue(value);
-      updated[key] = patch[key];
+      found.sheet.getRange(found.rowIndex, idx[column]).setValue(value);
+      updated.push(key);
     }
   });
   return {
     ticketId: ticketId,
     tab: found.sheet.getName(),
-    updated: Object.keys(updated),
+    updated: updated,
   };
 }
 
 // ------------------------------------------------------------
-// Kesiapan petugas
+// Kesiapan petugas (tab "siap")
 // ------------------------------------------------------------
 
 var SIAP_COLUMNS = ["username", "name", "latitude", "longitude", "checkedInAt"];

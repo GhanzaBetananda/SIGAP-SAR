@@ -16,16 +16,34 @@ Database yang dipakai: **satu Google Spreadsheet** dengan tab-tab yang dibuat **
 Tab laporan dibuat **otomatis** saat laporan pertama untuk kejadian itu masuk.
 **Pelapor tidak dibuatkan tab sendiri** — kategorinya cukup tersimpan di kolom:
 
-- `reporterCategory` → `pegawai_basarnas` (petugas SAR), `potensi_sar`, atau
-  `kampung_rescue`
-- `reporterUsername` / `employeeName` / `potentialSarName` / `kampungRescueName`
-  → nama orangnya
+- `kategoriPelapor` → bisa berisi 4 nilai: `pegawai_basarnas` (petugas SAR),
+  `potensi_sar`, dan untuk pelapor Kampung Rescue desanya ikut menempel —
+  `kampung_rescue - kampung_mandar` dan `kampung_rescue - songgon`
+- `nama` → nama orangnya (gabungan nama pegawai / potensi SAR / perwakilan
+  kampung rescue, dipilih sesuai kategori)
+- `wilayah` → kecamatan bagi pelapor Potensi SAR
+
+Baris 1 setiap tab laporan (kolom **bahasa Indonesia**):
+
+```
+nomorTiket, status, waktuKirim, kategoriPelapor, nama, wilayah, kejadian,
+jumlahKorban, latitude, longitude, detail, tautanVoiceNote, tautanFoto,
+jarak, tanggapan
+```
+
+Keterangan khusus:
+
+- `jarak` tampil **langsung dalam km**, mis.
+  `BASARNAS: 0.19 km | Manggala Agni: -`
+- `tanggapan` berupa JSON `{basarnas: {...}, manggala_agni: {...}}`
+- Tidak disimpan (sengaja dihapus): reporterUsername, locationAccuracy,
+  waOpened, tkpDistrict, kolom desa Kampung Rescue (melebur ke kategori)
+
+> Tab-tua berheading bahasa Inggris (dari versi sebelumnya) **dilewati dengan
+> aman** oleh skrip, tetapi sebaiknya dihapus agar spreadsheet bersih; jika
+> tabnya masih berdata, skrip minta tab dihapus manual sebelum membuat ulang.
 
 Di dalam setiap tab, baris urut **laporan terbaru dulu**.
-
-Kolom lengkap ada di baris 1 tiap tab laporan: ticketId, status, submittedAt,
-identitas pelapor, kategori pelapor, klasifikasi, koordinat, detail, photoUrl,
-voiceNoteUrl, distances, responses, waOpened.
 
 Status siap pada tab `siap` kedaluwarsa 2 jam (konsisten dengan UI).
 

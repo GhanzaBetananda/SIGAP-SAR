@@ -37,14 +37,26 @@ function warn(action, error) {
   console.warn(`[api] ${action} gagal — memakai data lokal.`, error);
 }
 
+/**
+ * Normalisasi respons list dari backend: bentuk {items:[...]} ATAU
+ * array langsung. Bukan keduanya → null (dianggap tidak valid).
+ */
+function unwrapItems(server) {
+  if (Array.isArray(server?.items)) return server.items;
+  if (Array.isArray(server)) return server;
+  return null;
+}
+
 // ---------------- Laporan ----------------
 
 /** Semua laporan dari server (atau null bila mode simulasi). */
 export function fetchReports() {
-  return callApi("getLaporan").catch((error) => {
-    warn("getLaporan", error);
-    return null;
-  });
+  return callApi("getLaporan")
+    .then(unwrapItems)
+    .catch((error) => {
+      warn("getLaporan", error);
+      return null;
+    });
 }
 
 /** Kirim laporan baru ke server (idempotent per nomor tiket). */
@@ -71,9 +83,10 @@ export async function loadReportsData() {
   if (apiEnabled) {
     try {
       const server = await callApi("getLaporan");
-      if (Array.isArray(server)) {
-        writeSimulatedReports(server);
-        return server;
+      const items = unwrapItems(server);
+      if (items) {
+        writeSimulatedReports(items);
+        return items;
       }
     } catch (error) {
       warn("getLaporan", error);
@@ -86,10 +99,12 @@ export async function loadReportsData() {
 
 /** Daftar petugas siap dari server (atau null bila mode simulasi). */
 export function fetchReadyStaff() {
-  return callApi("getSiap").catch((error) => {
-    warn("getSiap", error);
-    return null;
-  });
+  return callApi("getSiap")
+    .then(unwrapItems)
+    .catch((error) => {
+      warn("getSiap", error);
+      return null;
+    });
 }
 
 /**
@@ -100,9 +115,10 @@ export async function syncReadyStaff() {
   if (!apiEnabled) return null;
   try {
     const server = await callApi("getSiap");
-    if (Array.isArray(server)) {
-      overwriteReadyStaff(server);
-      return server;
+    const items = unwrapItems(server);
+    if (items) {
+      overwriteReadyStaff(items);
+      return items;
     }
   } catch (error) {
     warn("getSiap", error);
