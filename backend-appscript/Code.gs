@@ -192,7 +192,9 @@ function findRowByValue_(sheet, column, value) {
   var headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
   var colIndex = indexOf_(headers, column);
   if (colIndex === -1) return -1;
-  var values = sheet.getRange(2, colIndex, Math.max(sheet.getLastRow() - 1, 0), 1).getValues();
+  if (sheet.getLastRow() < 2) return -1;
+  // indexOf_ 0-based → API Sheets 1-based: +1 agar kolom mulai sah
+  var values = sheet.getRange(2, colIndex + 1, sheet.getLastRow() - 1, 1).getValues();
   for (var i = 0; i < values.length; i++) {
     if (String(values[i][0]) === String(value)) return i + 2; // nomor baris
   }
