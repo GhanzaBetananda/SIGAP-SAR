@@ -7,4 +7,4 @@
 // Kosongkan string untuk memakai mode SIMULASI (localStorage).
 // ============================================================
 
-export const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwAvHhKwFWcVYQgUkSkNUXWBLHWIeySRzi6hulwwAimo-PJT2_WFE1SqszpNpuwfVjvkw/exec";
+export const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgma9ctfej6RhYAwLuBi7oxBUDHLjBaxkaX5zGSD_T8oVTT_NGeA169nnEA-9rJrGGwQ/exec";
