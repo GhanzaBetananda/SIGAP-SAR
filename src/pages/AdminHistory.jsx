@@ -326,22 +326,25 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
     setUpdatedAt(new Date());
   }, []);
 
-  /** Ubah satu laporan dengan fungsi pengubah, lalu sinkronkan ke server. */
+  /** Ubah satu laporan dengan fungsi pengubah, lalu sinkronkan ke server.
+   *  Server-first: patch ke Sheet dulu; sukses → muat ulang dari server
+   *  (sumber kebenaran). Gagal → jatuh ke cermin lokal (mode offline). */
   const updateReport = useCallback(
-    (ticketId, mutator) => {
+    async (ticketId, mutator) => {
       const next = readSimulatedReports().map((report) =>
         ticketKey(report) === ticketId ? mutator(report) : report,
       );
-      writeSimulatedReports(next);
       const updated = next.find((report) => ticketKey(report) === ticketId);
-      if (updated) {
-        // Sheet menerima patch kolom tertentu: status & tanggapan instansi
-        patchReportOnServer(ticketId, {
-          status: updated.status,
-          responses: updated.responses,
-        });
+      // Sheet menerima patch kolom tertentu: status & tanggapan instansi
+      const patched = await patchReportOnServer(ticketId, {
+        status: updated?.status,
+        responses: updated?.responses,
+      });
+      if (!patched) {
+        writeSimulatedReports(next); // fallback offline
+        console.warn("[admin] patch gagal — perubahan disimpan lokal");
       }
-      loadReports();
+      await loadReports();
     },
     [loadReports],
   );

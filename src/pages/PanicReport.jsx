@@ -10,7 +10,7 @@ import LocationPicker from "../components/LocationPicker.jsx";
 import { useReport } from "../context/useReport.js";
 import { useAuth } from "../context/AuthProvider.jsx";
 import { readSimulatedReports } from "../context/reportState.js";
-import { saveReportOnServer } from "../utils/api.js";
+import { saveReportOnServer, patchReportOnServer } from "../utils/api.js";
 import PhotoPicker from "../components/PhotoPicker.jsx";
 import { validatePanicReport, validateInitialReport } from "../utils/validation.js";
 import { calculateDistances } from "../utils/distanceCalculator.js";
@@ -45,7 +45,12 @@ export default function PanicReport() {
 
   function markWaOpened(targetId) {
     if (waOpened.includes(targetId)) return;
-    updateReport({ waOpened: [...waOpened, targetId] });
+    const next = [...waOpened, targetId];
+    updateReport({ waOpened: next });
+    // Sinkron ke server agar "Distribusi selesai" terlihat lintas perangkat
+    if (report.ticketId) {
+      patchReportOnServer(report.ticketId, { waOpened: next });
+    }
   }
 
   function handleSubmit() {
@@ -91,11 +96,12 @@ export default function PanicReport() {
       confirmButtonText: "Ya, Kirim Laporan",
       cancelButtonText: "Periksa Kembali",
       confirmButtonColor: "#ea580c",
-    }).then((result) => {
+    }).then(async (result) => {
       if (!result.isConfirmed) return;
 
       // 3. Simpan laporan: cermin lokal (simulasi) — dan bila backend
-      //    Apps Script sudah disambungkan, dikirim ke Google Sheet
+      //    Apps Script sudah disambungkan, dikirim ke Google Sheet.
+      //    Jawaban server DITUNGGU agar statusnya bisa diberitahukan.
       const ticketId = generateTicketId(readSimulatedReports());
       const completeReport = {
         ...report,
@@ -106,7 +112,7 @@ export default function PanicReport() {
         submittedAt: new Date().toISOString(),
       };
       saveReportLocally(completeReport);
-      saveReportOnServer(completeReport);
+      const serverSaved = await saveReportOnServer(completeReport);
       updateReport({ ticketId, submittedAt: new Date().toISOString() });
 
       // 4. Tautan WhatsApp disiapkan sesuai klasifikasi kejadian —
@@ -114,10 +120,14 @@ export default function PanicReport() {
       setErrors({});
       const targets = getWhatsAppTargets(report, distances);
 
+      const serverNote = serverSaved
+        ? `<p style="color:#0c8a43"><strong>✅ Laporan terkirim ke server BASARNAS.</strong></p>`
+        : `<p style="color:#b45309"><strong>⚠️ Gagal terkirim ke server</strong> — laporan hanya tersimpan di perangkat ini. Periksa koneksi lalu kirim ulang.</p>`;
+
       Swal.fire({
         icon: "success",
         title: "Laporan Berhasil Disiapkan",
-        html: `<div style="text-align:left"><p>Nomor tiket laporan Anda: <strong>${escapeHtml(ticketId)}</strong> — catat nomor ini untuk mengecek status laporan.</p><p class="mt-2"><strong>Tautan WhatsApp siap dibuka:</strong></p><ul>${targets.map((target) => `<li>${escapeHtml(target.label)}</li>`).join("")}</ul><p class="mt-2" style="font-size:0.9em">Tekan tombol kirim secara manual di aplikasi WhatsApp.</p></div>`,
+        html: `<div style="text-align:left"><p>Nomor tiket laporan Anda: <strong>${escapeHtml(ticketId)}</strong> — catat nomor ini untuk mengecek status laporan.</p>${serverNote}<p class="mt-2"><strong>Tautan WhatsApp siap dibuka:</strong></p><ul>${targets.map((target) => `<li>${escapeHtml(target.label)}</li>`).join("")}</ul><p class="mt-2" style="font-size:0.9em">Tekan tombol kirim secara manual di aplikasi WhatsApp.</p></div>`,
         confirmButtonColor: "#ea580c",
         confirmButtonText: "Buka Distribusi WhatsApp",
       });

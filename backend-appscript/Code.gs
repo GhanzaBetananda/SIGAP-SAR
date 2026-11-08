@@ -1,28 +1,54 @@
 // ============================================================
 // SAT SET — BACKEND (GOOGLE APPS SCRIPT + GOOGLE SHEET)
 // Database = Spreadsheet dengan tab:
-//   1. "laporan" — satu baris per laporan panic button
-//      (termasuk status & tanggapan BASARNAS / Manggala Agni)
-//   2. "siap"    — status kesiapan pegawai SAR (lokasi "Saya Siap")
-// Kedua tab + header dibuat OTOMATIS saat pertama dipanggil,
-// sehingga cukup satu Spreadsheet kosong.//
+//   1. "laporan-<kejadian>" — SATU TAB PER KLASIFIKASI KEJADIAN:
+//        laporan-penerbangan, laporan-pelayaran,
+//        laporan-kondisi_membahayakan_manusia,
+//        laporan-penanganan_khusus,
+//        laporan-bencana_alam_kebakaran,
+//        laporan-bencana_alam_non_kebakaran,
+//        laporan-lainnya (klasifikasi tidak dikenal)
+//      Di dalam tiap tab, baris dikelompokkan per KATEGORI PELAPOR:
+//        pegawai_basarnas (petugas SAR) → potensi_sar → kampung_rescue.
+//   2. "siap" — status kesiapan pegawai SAR (lokasi "Saya Siap")
+// Tab + header dibuat OTOMATIS saat dipakai, ditab saja yang perlu.
+//
 // Lampiran (foto TKP & voice note) berupa dataURL tidak disimpan
 // ke sel Sheet (limit 50 ribu karakter) — backend menebusnya menjadi
 // berkas di Google Drive dan menyimpan tautannya di sel.
 //
-// Protokol API (semua via POST JSON dengan field "action"):
-//   ping            → uji koneksi
-//   getLaporan      → semua laporan
-//   createLaporan   → { laporan: {...} } upsert per ticketId
-//   updateLaporan   → { ticketId, patch: {...} } perbarui sebagian kolom
-//   getSiap         → daftar petugas siap (kedaluwarsa 2 jam diterapkan sisi UI)
-//   setSiap         → { item: {...}, remove?: true } upsert/hapus per username
+// PROTOKOL API (semua via POST JSON):
+//   { "action": "ping" }
+//   { "action": "getLaporan" }
+//   { "action": "createLaporan", "laporan": {...} }
+//   { "action": "updateLaporan", "ticketId", "patch": {...} }
+//   { "action": "getSiap" }
+//   { "action": "setSiap", item: {...}, remove?: true }
 // ============================================================
 
-var SHEET_LAPORAN = "laporan";
 var SHEET_SIAP = "siap";
+var SHEET_LEGACY = "laporan"; // tab lama (satu tab semua laporan) — dibaca saja
+var TAB_PREFIX = "laporan-";
+var TAB_FALLBACK = "laporan-lainnya";
 
-// Urutan kolom tab "laporan"
+// Peta klasifikasi kejadian → nama tab
+var CLASSIFICATION_TABS = {
+  penerbangan: "laporan-penerbangan",
+  pelayaran: "laporan-pelayaran",
+  kondisi_membahayakan_manusia: "laporan-kondisi_membahayakan_manusia",
+  penanganan_khusus: "laporan-penanganan_khusus",
+  bencana_alam_kebakaran: "laporan-bencana_alam_kebakaran",
+  bencana_alam_non_kebakaran: "laporan-bencana_alam_non_kebakaran",
+};
+
+// Urut kelompok pelapor di dalam tab (petugas SAR paling atas)
+var CATEGORY_ORDER = {
+  pegawai_basarnas: 0, // petugas SAR
+  potensi_sar: 1,
+  kampung_rescue: 2,
+};
+
+// Urutan kolom tab laporan (dipakai di SEMUA tab laporan-*)
 var LAPORAN_COLUMNS = [
   "ticketId",
   "status",
@@ -92,7 +118,14 @@ function doPost(e) {
   }
 }
 
-// Panggilan manual dari editor Apps Script (uji cepat tanpa UI).
+/** Pesan keterangan — memudahkan tes di browser (jendela incognito). */
+function doGet() {
+  return ContentService.createTextOutput(
+    "SAT SET API berjalan. Gunakan POST JSON {action, ...}."
+  );
+}
+
+/** Uji cepat dari editor Apps Script (tanpa lewat URL). */
 function testPing() {
   Logger.log("ping -> " + JSON.stringify(doPost({
     postData: { contents: JSON.stringify({ action: "ping" }) },
@@ -165,11 +198,21 @@ function indexOf_(list, value) {
 }
 
 // ------------------------------------------------------------
-// Laporan
+// Laporan — tab per kejadian, dikelompokkan per pelapor
 // ------------------------------------------------------------
 
-function reportSheet_() {
-  return ensureSheet_(SHEET_LAPORAN, LAPORAN_COLUMNS);
+/** Nama semua tab laporan yang mungkin (termasuk tab lama untuk baca). */
+function reportTabNames_() {
+  var names = [];
+  for (var key in CLASSIFICATION_TABS) names.push(CLASSIFICATION_TABS[key]);
+  names.push(TAB_FALLBACK);
+  names.push(SHEET_LEGACY);
+  return names;
+}
+
+/** Nama tab untuk satu klasifikasi; nilai tak dikenal → tab fallback. */
+function tabForClassification_(classification) {
+  return CLASSIFICATION_TABS[String(classification || "")] || TAB_FALLBACK;
 }
 
 function rowToLaporan_(row, headers) {
@@ -202,22 +245,40 @@ function laporanToRow_(lap, headers) {
   });
 }
 
+/** Semua laporan dari seluruh tab laporan-*. */
 function getLaporan_() {
-  var sheet = reportSheet_();
-  var headers = sheetHeaders_(sheet, LAPORAN_COLUMNS);
-  var last = sheet.getLastRow();
-  if (last < 2) return { items: [] };
-  var rows = sheet.getRange(2, 1, last - 1, headers.length).getValues();
-  var items = rows.map(function (row) { return rowToLaporan_(row, headers); });
+  var items = [];
+  var names = reportTabNames_();
+  for (var i = 0; i < names.length; i++) {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(names[i]);
+    if (!sheet || sheet.getLastRow() < 2) continue;
+    var headers = sheetHeaders_(sheet, LAPORAN_COLUMNS);
+    var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+    for (var r = 0; r < rows.length; r++) {
+      items.push(rowToLaporan_(rows[r], headers));
+    }
+  }
   return { items: items };
 }
 
-/** Upsert laporan: ticketId ada -> timpa barisnya, tidak ada -> tambah di akhir. */
-function upsertLaporan_(lap) {
-  var sheet = reportSheet_();
-  var headers = sheetHeaders_(sheet, LAPORAN_COLUMNS);
-  var index = headerIndex_(headers);
+/** Cari baris laporan berdasarkan ticketId di semua tab laporan. */
+function findLaporanRow_(ticketId) {
+  var names = reportTabNames_();
+  for (var i = 0; i < names.length; i++) {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(names[i]);
+    if (!sheet || sheet.getLastRow() < 2) continue;
+    var rowIndex = findRowByValue_(sheet, "ticketId", ticketId);
+    if (rowIndex !== -1) return { sheet: sheet, rowIndex: rowIndex };
+  }
+  return null;
+}
 
+/**
+ * Upsert laporan:
+ *   - dipindahkan ke tab sesuai klasifikasi kejadiannya
+ *   - dikelompokkan per kategori pelapor (regroupTab_)
+ */
+function upsertLaporan_(lap) {
   // Lampiran dataURL ditebus ke Google Drive agar sel tidak bengkak
   if (lap.photoUrl && String(lap.photoUrl).indexOf("data:") === 0) {
     lap.photoUrl = saveAttachment_(
@@ -232,24 +293,76 @@ function upsertLaporan_(lap) {
     );
   }
 
-  var rowIndex = findRowByValue_(sheet, "ticketId", lap.ticketId || "");
-  var rowValue = laporanToRow_(lap, headers);
-  if (rowIndex === -1) {
-    sheet.appendRow(rowValue);
-  } else {
-    sheet.getRange(rowIndex, 1, 1, rowValue.length).setValues([rowValue]);
+  var targetName = tabForClassification_(lap.classification);
+  var existing = findLaporanRow_(lap.ticketId || "");
+
+  if (existing && existing.sheet.getName() === targetName) {
+    // Tetap di tab yang benar — tulis ulang barisnya
+    var headers = sheetHeaders_(existing.sheet, LAPORAN_COLUMNS);
+    existing.sheet
+      .getRange(existing.rowIndex, 1, 1, headers.length)
+      .setValues([laporanToRow_(lap, headers)]);
+    return { ticketId: lap.ticketId, tab: targetName, rowIndex: existing.rowIndex };
   }
-  return { ticketId: lap.ticketId, rowIndex: rowIndex === -1 ? null : rowIndex };
+  if (existing) {
+    // Klasifikasi berubah — pindahkan baris ke tab yang sesuai
+    existing.sheet.deleteRow(existing.rowIndex);
+  }
+
+  var sheet = ensureSheet_(targetName, LAPORAN_COLUMNS);
+  var headers2 = sheetHeaders_(sheet, LAPORAN_COLUMNS);
+  sheet.appendRow(laporanToRow_(tokenless, headers2));
+  regroupTab_(sheet); // kelompokkan per kategori pelapor
+  return { ticketId: lap.ticketId, tab: targetName, rowIndex: null };
+}
+
+/**
+ * Susun ulang baris tab laporan: kelompokkan per kategori pelapor
+ * (pegawai_basarnas → potensi_sar → kampung_rescue), di dalam
+ * kelompok waktu laporan terbaru lebih dulu.
+ * Tulis ulang hanya bila urutan benar-benar berubah (hemat kuota).
+ */
+function regroupTab_(sheet) {
+  var headers = sheetHeaders_(sheet, LAPORAN_COLUMNS);
+  var index = headerIndex_(headers);
+  var catCol = index["reporterCategory"] || 5;
+  var timeCol = index["submittedAt"] || 3;
+  var last = sheet.getLastRow();
+  if (last < 2) return;
+
+  var rows = sheet.getRange(2, 1, last - 1, headers.length).getValues();
+  var order = function (value) {
+    return CATEGORY_ORDER[String(value || "")] != null
+      ? CATEGORY_ORDER[String(value || "")]
+      : 9;
+  };
+  var sorted = rows.slice().sort(function (a, b) {
+    var ca = order(a[catCol - 1]);
+    var cb = order(b[catCol - 1]);
+    if (ca !== cb) return ca - cb;
+    var ta = String(a[timeCol - 1] || "");
+    var tb = String(b[timeCol - 1] || "");
+    return ta < tb ? 1 : ta > tb ? -1 : 0; // terbaru dulu
+  });
+
+  var changed = false;
+  for (var i = 0; i < rows.length && !changed; i++) {
+    for (var c = 0; c < headers.length; c++) {
+      if (String(rows[i][c]) !== String(sorted[i][c])) { changed = true; break; }
+    }
+  }
+  if (changed) {
+    sheet.getRange(2, 1, sorted.length, headers.length).setValues(sorted);
+  }
 }
 
 /** Perbarui kolom laporan tertentu (status, responses, waOpened, ...). */
 function updateLaporan_(ticketId, patch) {
-  var sheet = reportSheet_();
-  var headers = sheetHeaders_(sheet, LAPORAN_COLUMNS);
-  var index = headerIndex_(headers);
-  var rowIndex = findRowByValue_(sheet, "ticketId", ticketId || "");
-  if (rowIndex === -1) throw new Error("Laporan tidak ditemukan: " + ticketId);
+  var found = findLaporanRow_(ticketId || "");
+  if (!found) throw new Error("Laporan tidak ditemukan: " + ticketId);
 
+  var headers = sheetHeaders_(found.sheet, LAPORAN_COLUMNS);
+  var index = headerIndex_(headers);
   var updated = {};
   Object.keys(patch).forEach(function (key) {
     if (index[key]) {
@@ -257,11 +370,15 @@ function updateLaporan_(ticketId, patch) {
       if (LAPORAN_JSON_FIELDS[key]) {
         value = value == null ? "" : JSON.stringify(value === "" ? [] : value);
       }
-      sheet.getRange(rowIndex, index[key]).setValue(value);
+      found.sheet.getRange(found.rowIndex, index[key]).setValue(value);
       updated[key] = patch[key];
     }
   });
-  return { ticketId: ticketId, updated: Object.keys(updated) };
+  return {
+    ticketId: ticketId,
+    tab: found.sheet.getName(),
+    updated: Object.keys(updated),
+  };
 }
 
 // ------------------------------------------------------------
