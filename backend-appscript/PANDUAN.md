@@ -13,14 +13,19 @@ Database yang dipakai: **satu Google Spreadsheet** dengan tab-tab yang dibuat **
 | `laporan-lainnya` | laporan dengan klasifikasi tidak dikenal |
 | `siap` | status "Saya Siap" pegawai SAR (username, name, lat, lng, waktu) |
 
-Tab laporan hanya dibuat **saat laporan pertama untuk kejadian itu masuk**.
-Di dalam setiap tab laporan, baris **dikelompokkan per kategori pelapor**
-(`pegawai_basarnas` petugas SAR → `potensi_sar` → `kampung_rescue`) dengan
-kolom `reporterCategory` — laporan terbaru dulu di setiap kelompok.
+Tab laporan dibuat **otomatis** saat laporan pertama untuk kejadian itu masuk.
+**Pelapor tidak dibuatkan tab sendiri** — kategorinya cukup tersimpan di kolom:
+
+- `reporterCategory` → `pegawai_basarnas` (petugas SAR), `potensi_sar`, atau
+  `kampung_rescue`
+- `reporterUsername` / `employeeName` / `potentialSarName` / `kampungRescueName`
+  → nama orangnya
+
+Di dalam setiap tab, baris urut **laporan terbaru dulu**.
 
 Kolom lengkap ada di baris 1 tiap tab laporan: ticketId, status, submittedAt,
-identitas pelapor, klasifikasi, koordinat, detail, photoUrl, voiceNoteUrl,
-distances, responses, waOpened.
+identitas pelapor, kategori pelapor, klasifikasi, koordinat, detail, photoUrl,
+voiceNoteUrl, distances, responses, waOpened.
 
 Status siap pada tab `siap` kedaluwarsa 2 jam (konsisten dengan UI).
 
@@ -80,9 +85,9 @@ export const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycb.../exe
 1. Buka aplikasi pelapor → login → kirim 1 laporan percobaan; dialog sukses
    menandai **✅ terkirim ke server**.
 2. Buka spreadsheet → laporan masuk ke tab **sesuai klasifikasi kejadiannya**
-   (mis. kebakaran → `laporan-bencana_alam_kebakaran`), terkelompok berdasarkan
-   kategori pelapornya; foto/voice note berupa **link Google Drive**; berkas
-   fisiknya di folder Drive `SAT SET — Lampiran`.
+   (mis. kebakaran → `laporan-bencana_alam_kebakaran`), dengan pelapor
+   tercatat di kolom kategori pelapornya; foto/voice note berupa
+   **link Google Drive**; berkas fisiknya di folder Drive `SAT SET — Lampiran`.
 3. Buka panel admin → tombol **Segarkan** → laporan muncul.
 4. Login akun pegawai (`BAS001`) → tab **Siaga** → "Saya Siap Membantu" → tab `siap` terisi.
 5. Admin membuka laporan → daftar "Petugas Terdekat yang SIAP" berisi pegawai tadi.

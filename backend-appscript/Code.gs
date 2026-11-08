@@ -8,8 +8,10 @@
 //        laporan-bencana_alam_kebakaran,
 //        laporan-bencana_alam_non_kebakaran,
 //        laporan-lainnya (klasifikasi tidak dikenal)
-//      Di dalam tiap tab, baris dikelompokkan per KATEGORI PELAPOR:
-//        pegawai_basarnas (petugas SAR) → potensi_sar → kampung_rescue.
+//      PELAPOR tidak dibuatkan tab sendiri — kategorinya tersimpan
+//      di kolom reporterCategory (pegawai_basarnas / potensi_sar /
+//      kampung_rescue) di setiap baris.
+//      Di dalam tiap tab, baris urut waktu terbaru dulu.
 //   2. "siap" — status kesiapan pegawai SAR (lokasi "Saya Siap")
 // Tab + header dibuat OTOMATIS saat dipakai, ditab saja yang perlu.
 //
@@ -39,13 +41,6 @@ var CLASSIFICATION_TABS = {
   penanganan_khusus: "laporan-penanganan_khusus",
   bencana_alam_kebakaran: "laporan-bencana_alam_kebakaran",
   bencana_alam_non_kebakaran: "laporan-bencana_alam_non_kebakaran",
-};
-
-// Urut kelompok pelapor di dalam tab (petugas SAR paling atas)
-var CATEGORY_ORDER = {
-  pegawai_basarnas: 0, // petugas SAR
-  potensi_sar: 1,
-  kampung_rescue: 2,
 };
 
 // Urutan kolom tab laporan (dipakai di SEMUA tab laporan-*)
@@ -198,16 +193,20 @@ function indexOf_(list, value) {
 }
 
 // ------------------------------------------------------------
-// Laporan — tab per kejadian, dikelompokkan per pelapor
+// Laporan — tab per kejadian
 // ------------------------------------------------------------
 
-/** Nama semua tab laporan yang mungkin (termasuk tab lama untuk baca). */
-function reportTabNames_() {
-  var names = [];
-  for (var key in CLASSIFICATION_TABS) names.push(CLASSIFICATION_TABS[key]);
-  names.push(TAB_FALLBACK);
-  names.push(SHEET_LEGACY);
-  return names;
+/** Semua tab laporan yang ada saat ini (prefiks laporan- + tab lama). */
+function reportSheets_() {
+  var sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+  var result = [];
+  for (var i = 0; i < sheets.length; i++) {
+    var name = String(sheets[i].getName());
+    if (name.indexOf(TAB_PREFIX) === 0 || name === SHEET_LEGACY) {
+      result.push(sheets[i]);
+    }
+  }
+  return result;
 }
 
 /** Nama tab untuk satu klasifikasi; nilai tak dikenal → tab fallback. */
@@ -248,10 +247,10 @@ function laporanToRow_(lap, headers) {
 /** Semua laporan dari seluruh tab laporan-*. */
 function getLaporan_() {
   var items = [];
-  var names = reportTabNames_();
-  for (var i = 0; i < names.length; i++) {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(names[i]);
-    if (!sheet || sheet.getLastRow() < 2) continue;
+  var sheets = reportSheets_();
+  for (var i = 0; i < sheets.length; i++) {
+    var sheet = sheets[i];
+    if (sheet.getLastRow() < 2) continue;
     var headers = sheetHeaders_(sheet, LAPORAN_COLUMNS);
     var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
     for (var r = 0; r < rows.length; r++) {
@@ -263,12 +262,11 @@ function getLaporan_() {
 
 /** Cari baris laporan berdasarkan ticketId di semua tab laporan. */
 function findLaporanRow_(ticketId) {
-  var names = reportTabNames_();
-  for (var i = 0; i < names.length; i++) {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(names[i]);
-    if (!sheet || sheet.getLastRow() < 2) continue;
-    var rowIndex = findRowByValue_(sheet, "ticketId", ticketId);
-    if (rowIndex !== -1) return { sheet: sheet, rowIndex: rowIndex };
+  var sheets = reportSheets_();
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].getLastRow() < 2) continue;
+    var rowIndex = findRowByValue_(sheets[i], "ticketId", ticketId);
+    if (rowIndex !== -1) return { sheet: sheets[i], rowIndex: rowIndex };
   }
   return null;
 }
@@ -311,35 +309,25 @@ function upsertLaporan_(lap) {
 
   var sheet = ensureSheet_(targetName, LAPORAN_COLUMNS);
   var headers2 = sheetHeaders_(sheet, LAPORAN_COLUMNS);
-  sheet.appendRow(laporanToRow_(tokenless, headers2));
-  regroupTab_(sheet); // kelompokkan per kategori pelapor
+  sheet.appendRow(laporanToRow_(lap, headers2));
+  regroupTab_(sheet); // urutkan terbaru dulu
   return { ticketId: lap.ticketId, tab: targetName, rowIndex: null };
 }
 
 /**
- * Susun ulang baris tab laporan: kelompokkan per kategori pelapor
- * (pegawai_basarnas → potensi_sar → kampung_rescue), di dalam
- * kelompok waktu laporan terbaru lebih dulu.
+ * Susun ulang baris tab laporan: urut waktu laporan terbaru dulu.
+ * (Satu tab = satu kategori pelapor, jadi cukup urutkan per waktu.)
  * Tulis ulang hanya bila urutan benar-benar berubah (hemat kuota).
  */
 function regroupTab_(sheet) {
   var headers = sheetHeaders_(sheet, LAPORAN_COLUMNS);
   var index = headerIndex_(headers);
-  var catCol = index["reporterCategory"] || 5;
   var timeCol = index["submittedAt"] || 3;
   var last = sheet.getLastRow();
   if (last < 2) return;
 
   var rows = sheet.getRange(2, 1, last - 1, headers.length).getValues();
-  var order = function (value) {
-    return CATEGORY_ORDER[String(value || "")] != null
-      ? CATEGORY_ORDER[String(value || "")]
-      : 9;
-  };
   var sorted = rows.slice().sort(function (a, b) {
-    var ca = order(a[catCol - 1]);
-    var cb = order(b[catCol - 1]);
-    if (ca !== cb) return ca - cb;
     var ta = String(a[timeCol - 1] || "");
     var tb = String(b[timeCol - 1] || "");
     return ta < tb ? 1 : ta > tb ? -1 : 0; // terbaru dulu
