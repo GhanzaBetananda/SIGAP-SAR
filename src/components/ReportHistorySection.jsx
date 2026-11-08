@@ -8,7 +8,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
-import { readSimulatedReports } from "../context/reportState.js";
+import { loadReportsData } from "../utils/api.js";
 import { getIncidentLabel, isFireIncident } from "../data/incidentTypes.js";
 
 // Status laporan kini otomatis dari tanggapan instansi (baru ->
@@ -45,8 +45,11 @@ export function ReportHistorySection({ username }) {
   const [reports, setReports] = useState([]);
 
   useEffect(() => {
-    function refresh() {
-      const mine = readSimulatedReports()
+    // Ambil dari server (bila backend aktif) lalu filter milik akun ini;
+    // gagal/offline akan otomatis memakai cermin localStorage.
+    async function refresh() {
+      const all = await loadReportsData();
+      const mine = all
         .filter((report) => !username || report.reporterUsername === username)
         .sort((a, b) => new Date(b.submittedAt ?? 0) - new Date(a.submittedAt ?? 0));
       setReports(mine.slice(0, 5)); // 5 terakhir agar dashboard tetap ringkas

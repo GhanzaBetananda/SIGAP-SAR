@@ -18,7 +18,7 @@ import {
   MapPin,
   RefreshCw,
 } from "lucide-react";
-import { readSimulatedReports } from "../context/reportState.js";
+import { loadReportsData, syncReadyStaff } from "../utils/api.js";
 import { getIncidentLabel, isFireIncident } from "../data/incidentTypes.js";
 import { formatDistanceKm, haversineKm } from "../utils/distanceCalculator.js";
 import { readyRecord } from "../utils/sarReadiness.js";
@@ -39,23 +39,32 @@ function mapsLink(report) {
 }
 
 export default function SarDutyBoard({ session }) {
-  /** Mengumpulkan data papan (laporan terbaru + status siap) sekaligus. */
-  const collectBoardData = useCallback(() => {
-    const sorted = readSimulatedReports()
+  /** Kumpulkan data papan (laporan terbaru + status siap) dari server. */
+  const collectBoardData = useCallback(async () => {
+    const saved = await loadReportsData();
+    // Samakan daftar petugas siap dengan server (bila backend aktif)
+    await syncReadyStaff();
+    const sorted = saved
       .filter((item) => item.submittedAt)
       .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
       .slice(0, 10); // 10 laporan terbaru agar papan tetap ringkas
     return { reports: sorted, record: readyRecord(session.username) };
   }, [session.username]);
 
-  const [board, setBoard] = useState(collectBoardData);
+  const [board, setBoard] = useState({ reports: [], record: null });
   const { reports, record } = board;
 
   useEffect(() => {
-    const sync = () => setBoard(collectBoardData());
+    let alive = true;
+    const sync = async () => {
+      const next = await collectBoardData();
+      if (alive) setBoard(next);
+    };
+    sync();
     const interval = setInterval(sync, 15000);
     window.addEventListener("storage", sync);
     return () => {
+      alive = false;
       clearInterval(interval);
       window.removeEventListener("storage", sync);
     };

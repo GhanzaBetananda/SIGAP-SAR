@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthProvider.jsx";
 import { ReportHistorySection } from "../components/ReportHistorySection.jsx";
 import SarDutyBoard from "../components/SarDutyBoard.jsx";
 import { readyRecord, setReady, READY_TTL_MS } from "../utils/sarReadiness.js";
+import { pushReadyStaff } from "../utils/api.js";
 import {
   AlertTriangle,
   ClipboardList,
@@ -219,6 +220,9 @@ function SarReadinessCard({ session }) {
           longitude: position.coords.longitude,
         });
         refreshFromStore();
+        // Sinkronkan status siap ke sheet "siap" (bila backend aktif)
+        const record = readyRecord(session.username);
+        if (record) pushReadyStaff(record);
         setBusy(false);
       },
       (geoError) => {
@@ -288,6 +292,8 @@ function SarReadinessCard({ session }) {
           type="button"
           onClick={() => {
             setReady(session.username, session.name, null);
+            // Cabut juga di sheet "siap" (bila backend aktif)
+            pushReadyStaff({ username: session.username }, true);
             refreshFromStore();
           }}
           className="mt-2 text-xs font-semibold text-slate-500 underline underline-offset-2 hover:text-red-600"

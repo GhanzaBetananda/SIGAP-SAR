@@ -7,9 +7,8 @@
 // peralatan -> diterjunkan -> selesai; laporan kebakaran dapat
 // ditanggapi BASARNAS dan Manggala Agni secara silang), serta
 // peringatan suara+banner saat laporan baru masuk.
-// Sumber data saat ini: localStorage perangkat ini (simulasi).
-// Ganti loadReports()/updateReport() dengan fetch API s
-// saat backend tersedia.
+// Sumber data: Apps Script + Google Sheet bila APPS_SCRIPT_URL terisi
+// (src/config/backend.js), dengan localStorage sebagai cermin/fallback.
 // ============================================================
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -39,7 +38,10 @@ import {
 } from "../context/reportState.js";
 import { getIncidentLabel, isFireIncident } from "../data/incidentTypes.js";
 import { districtLabel } from "../data/districts.js";
-import { REPORTER_CATEGORIES, reporterName } from "../utils/whatsappGenerator.js";
+import {
+  REPORTER_CATEGORIES,
+  reporterName,
+} from "../utils/whatsappGenerator.js";
 import { formatDistanceKm } from "../utils/distanceCalculator.js";
 import { publicUrl } from "../utils/domains.js";
 import {
@@ -49,7 +51,10 @@ import {
   getAdminUsername,
   AGENCY_LABELS,
 } from "../config/adminAuth.js";
-import { STATUS_LABELS, STATUS_STYLES } from "../components/ReportHistorySection.jsx";
+import {
+  STATUS_LABELS,
+  STATUS_STYLES,
+} from "../components/ReportHistorySection.jsx";
 import {
   applyResponse,
   RESPONSE_AGENCIES,
@@ -59,6 +64,11 @@ import {
 } from "../utils/reportResponses.js";
 import { EQUIPMENT_PRESETS } from "../data/responsePresets.js";
 import { nearestReadyStaff, READY_TTL_MS } from "../utils/sarReadiness.js";
+import {
+  loadReportsData,
+  patchReportOnServer,
+  syncReadyStaff,
+} from "../utils/api.js";
 
 const LOGOS_BASARNAS = [
   { src: "/456.png", alt: "Logo 456" },
@@ -67,7 +77,7 @@ const LOGOS_BASARNAS = [
 ];
 
 const LOGOS_MANGGALA = [
-  { src: "/kemenhut.jpg", alt: "Logo Kementerian Kehutanan" },
+  { src: "/kemenhut.png", alt: "Logo Kementerian Kehutanan" },
   { src: "/manggala.png", alt: "Logo Manggala Agni" },
 ];
 
@@ -91,7 +101,10 @@ function playAlertTone() {
       osc.type = "sine";
       osc.frequency.value = 880;
       gain.gain.setValueAtTime(0.12, ctx.currentTime + offset);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.2);
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        ctx.currentTime + offset + 0.2,
+      );
       osc.connect(gain).connect(ctx.destination);
       osc.start(ctx.currentTime + offset);
       osc.stop(ctx.currentTime + offset + 0.2);
@@ -130,8 +143,10 @@ function ticketKey(report) {
 
 /** Teks singkat wilayah pelapor (kecamatan / desa). */
 function reporterRegion(report) {
-  if (report.reporterCategory === "potensi_sar") return districtLabel(report.district);
-  if (report.reporterCategory === "kampung_rescue") return report.kampungRescueDesa;
+  if (report.reporterCategory === "potensi_sar")
+    return districtLabel(report.district);
+  if (report.reporterCategory === "kampung_rescue")
+    return report.kampungRescueDesa;
   return "";
 }
 
@@ -163,10 +178,7 @@ export default function AdminHistory({ agency = "basarnas" }) {
     );
   }
   return (
-    <AdminDashboard
-      agency={agency}
-      onLogout={() => setAgencySession(null)}
-    />
+    <AdminDashboard agency={agency} onLogout={() => setAgencySession(null)} />
   );
 }
 
@@ -218,7 +230,10 @@ function AdminLogin({ agency, onSuccess }) {
 
           <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
             <div>
-              <label htmlFor="admin-username" className="mb-1.5 block text-sm font-semibold text-slate-700">
+              <label
+                htmlFor="admin-username"
+                className="mb-1.5 block text-sm font-semibold text-slate-700"
+              >
                 Username
               </label>
               <input
@@ -233,7 +248,10 @@ function AdminLogin({ agency, onSuccess }) {
               />
             </div>
             <div>
-              <label htmlFor="admin-password" className="mb-1.5 block text-sm font-semibold text-slate-700">
+              <label
+                htmlFor="admin-password"
+                className="mb-1.5 block text-sm font-semibold text-slate-700"
+              >
                 Password
               </label>
               <input
@@ -266,7 +284,8 @@ function AdminLogin({ agency, onSuccess }) {
       </div>
 
       <footer className="border-t border-slate-200/70 bg-white py-4 text-center text-xs text-slate-500">
-        ADMIN SAT SET — Akses terbatas bagi petugas berwenang ({AGENCY_LABELS[agency]})
+        ADMIN SAT SET — Akses terbatas bagi petugas berwenang (
+        {AGENCY_LABELS[agency]})
       </footer>
     </div>
   );
@@ -289,8 +308,10 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
   const [detailTicket, setDetailTicket] = useState(null);
   const actor = getAdminUsername();
 
-  const loadReports = useCallback(() => {
-    const history = readSimulatedReports()
+  /** Muat laporan dari server (atau cermin lokal) lalu urutkan. */
+  const loadReports = useCallback(async () => {
+    const saved = await loadReportsData();
+    const history = saved
       .filter((item) => Boolean(item.submittedAt))
       .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
 
@@ -305,13 +326,21 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
     setUpdatedAt(new Date());
   }, []);
 
-  /** Ubah satu laporan dengan fungsi pengubah, lalu simpan kembali. */
+  /** Ubah satu laporan dengan fungsi pengubah, lalu sinkronkan ke server. */
   const updateReport = useCallback(
     (ticketId, mutator) => {
       const next = readSimulatedReports().map((report) =>
         ticketKey(report) === ticketId ? mutator(report) : report,
       );
       writeSimulatedReports(next);
+      const updated = next.find((report) => ticketKey(report) === ticketId);
+      if (updated) {
+        // Sheet menerima patch kolom tertentu: status & tanggapan instansi
+        patchReportOnServer(ticketId, {
+          status: updated.status,
+          responses: updated.responses,
+        });
+      }
       loadReports();
     },
     [loadReports],
@@ -373,7 +402,7 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
 
   /** Laporan yang sedang dibuka pada modal tanggapan. */
   const detailReport = detailTicket
-    ? reports.find((report) => ticketKey(report) === detailTicket) ?? null
+    ? (reports.find((report) => ticketKey(report) === detailTicket) ?? null)
     : null;
 
   useEffect(() => {
@@ -394,10 +423,16 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
     if (filter === "baru" && statusGroup(report.status ?? "baru") !== "baru") {
       return false;
     }
-    if (filter === "diproses" && statusGroup(report.status ?? "baru") !== "diproses") {
+    if (
+      filter === "diproses" &&
+      statusGroup(report.status ?? "baru") !== "diproses"
+    ) {
       return false;
     }
-    if (filter === "selesai" && statusGroup(report.status ?? "baru") !== "selesai") {
+    if (
+      filter === "selesai" &&
+      statusGroup(report.status ?? "baru") !== "selesai"
+    ) {
       return false;
     }
 
@@ -418,16 +453,28 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
   const stats = {
     total: scopedReports.length,
     fire: scopedReports.filter((r) => isFireIncident(r.classification)).length,
-    nonFire: scopedReports.filter((r) => !isFireIncident(r.classification)).length,
-    victims: scopedReports.reduce((sum, r) => sum + (Number(r.victimCount) || 0), 0),
-    diproses: scopedReports.filter((r) => statusGroup(r.status ?? "baru") === "diproses").length,
-    selesai: scopedReports.filter((r) => statusGroup(r.status ?? "baru") === "selesai").length,
+    nonFire: scopedReports.filter((r) => !isFireIncident(r.classification))
+      .length,
+    victims: scopedReports.reduce(
+      (sum, r) => sum + (Number(r.victimCount) || 0),
+      0,
+    ),
+    diproses: scopedReports.filter(
+      (r) => statusGroup(r.status ?? "baru") === "diproses",
+    ).length,
+    selesai: scopedReports.filter(
+      (r) => statusGroup(r.status ?? "baru") === "selesai",
+    ).length,
   };
 
   const FILTERS = isAgni
     ? [
         { value: "all", label: "Semua", count: stats.total },
-        { value: "baru", label: "Baru", count: stats.total - stats.diproses - stats.selesai },
+        {
+          value: "baru",
+          label: "Baru",
+          count: stats.total - stats.diproses - stats.selesai,
+        },
         { value: "diproses", label: "Diproses", count: stats.diproses },
         { value: "selesai", label: "Selesai", count: stats.selesai },
       ]
@@ -567,9 +614,11 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                 type="button"
                 onClick={() => setFilter(item.value)}
                 className={`rounded-full border-2 px-4 py-2 text-sm font-bold transition-colors
-                  ${filter === item.value
-                    ? "border-primary bg-primary text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"}`}
+                  ${
+                    filter === item.value
+                      ? "border-primary bg-primary text-white"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
+                  }`}
               >
                 {item.label}
                 <span className="ml-1.5 text-xs opacity-70">{item.count}</span>
@@ -589,9 +638,9 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
         <section className="mt-5">
           {updatedAt && (
             <p className="mb-3 text-xs text-slate-400">
-              Diperbarui {formatDateTime(updatedAt.toISOString())} — data dibaca dari
-              perangkat ini (simulasi frontend; backend akan menyajikan laporan seluruh
-              pelapor).
+              Diperbarui {formatDateTime(updatedAt.toISOString())} — data dibaca
+              dari perangkat ini (simulasi frontend; backend akan menyajikan
+              laporan seluruh pelapor).
             </p>
           )}
 
@@ -600,8 +649,8 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
               <Inbox className="mx-auto h-10 w-10 text-slate-300" />
               <p className="mt-3 font-bold text-slate-700">Belum ada laporan</p>
               <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-                Laporan yang dikirim melalui Panic Button pada perangkat ini akan
-                muncul di sini secara otomatis.
+                Laporan yang dikirim melalui Panic Button pada perangkat ini
+                akan muncul di sini secara otomatis.
               </p>
             </div>
           ) : (
@@ -616,7 +665,9 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                     <th className="px-4 py-3 text-center font-bold">Korban</th>
                     <th className="px-4 py-3 font-bold">Jarak</th>
                     <th className="px-4 py-3 font-bold">Status</th>
-                    <th className="px-4 py-3 font-bold">Tanggapan {AGENCY_LABELS[agency]}</th>
+                    <th className="px-4 py-3 font-bold">
+                      Tanggapan {AGENCY_LABELS[agency]}
+                    </th>
                     <th className="px-4 py-3 font-bold">TKP</th>
                   </tr>
                 </thead>
@@ -638,14 +689,21 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                           </p>
                         </td>
                         <td className="px-4 py-3">
-                          <p className="font-bold text-slate-900">{reporterName(report)}</p>
+                          <p className="font-bold text-slate-900">
+                            {reporterName(report)}
+                          </p>
                           <p className="text-xs text-slate-500">
-                            {REPORTER_CATEGORIES[report.reporterCategory] || "-"}
-                            {reporterRegion(report) ? ` — ${reporterRegion(report)}` : ""}
+                            {REPORTER_CATEGORIES[report.reporterCategory] ||
+                              "-"}
+                            {reporterRegion(report)
+                              ? ` — ${reporterRegion(report)}`
+                              : ""}
                           </p>
                         </td>
                         <td className="px-4 py-3">
-                          <ClassificationBadge classification={report.classification} />
+                          <ClassificationBadge
+                            classification={report.classification}
+                          />
                         </td>
                         <td className="px-4 py-3 text-center font-bold text-slate-900">
                           {report.victimCount}
@@ -666,7 +724,10 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                             {STATUS_LABELS[report.status ?? "baru"] ?? "-"}
                           </span>
                         </td>
-                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="px-4 py-3"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <ResponseCell
                             report={report}
                             agency={agency}
@@ -674,7 +735,10 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                             onOpen={() => setDetailTicket(key)}
                           />
                         </td>
-                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="px-4 py-3"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <div className="flex items-center gap-2">
                             {report.photoUrl && (
                               <a
@@ -724,7 +788,8 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
 
         {reports.length > 0 && filtered.length !== reports.length && (
           <p className="mt-3 text-center text-xs text-slate-400">
-            Menampilkan {filtered.length} dari {reports.length} laporan (difilter).
+            Menampilkan {filtered.length} dari {reports.length} laporan
+            (difilter).
           </p>
         )}
       </main>
@@ -736,7 +801,9 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
           report={detailReport}
           agency={agency}
           onReceive={() => receiveReport(ticketKey(detailReport))}
-          onSaveDispatch={(payload) => saveDispatch(ticketKey(detailReport), payload)}
+          onSaveDispatch={(payload) =>
+            saveDispatch(ticketKey(detailReport), payload)
+          }
           onFinish={() => finishTicket(ticketKey(detailReport))}
           onReopen={() => reopenTicket(ticketKey(detailReport))}
           onClose={() => setDetailTicket(null)}
@@ -764,7 +831,9 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
 function StatCard({ icon, label, value, tint }) {
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-      <span className={`inline-flex rounded-lg ${tint} p-2 text-white`}>{icon}</span>
+      <span className={`inline-flex rounded-lg ${tint} p-2 text-white`}>
+        {icon}
+      </span>
       <p className="mt-2 text-2xl font-extrabold text-slate-900">{value}</p>
       <p className="text-xs font-medium text-slate-500">{label}</p>
     </div>
@@ -777,7 +846,9 @@ function ClassificationBadge({ classification }) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
-        fire ? "bg-red-50 text-red-700" : "bg-fireorange/10 text-fireorange-dark"
+        fire
+          ? "bg-red-50 text-red-700"
+          : "bg-fireorange/10 text-fireorange-dark"
       }`}
     >
       {fire && <Flame className="h-3 w-3" />}
@@ -800,7 +871,9 @@ function AdminReportCard({ report, agency, onReceive, onOpen }) {
           <p className="font-mono text-xs font-bold text-primary">
             {report.ticketId ?? "-"}
           </p>
-          <p className="mt-0.5 truncate font-bold text-slate-900">{reporterName(report)}</p>
+          <p className="mt-0.5 truncate font-bold text-slate-900">
+            {reporterName(report)}
+          </p>
           <p className="truncate text-xs text-slate-500">
             {REPORTER_CATEGORIES[report.reporterCategory] || "-"}
             {reporterRegion(report) ? ` — ${reporterRegion(report)}` : ""}
@@ -819,11 +892,15 @@ function AdminReportCard({ report, agency, onReceive, onOpen }) {
       <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
         <div className="rounded-lg bg-slate-50 px-3 py-2">
           <dt className="text-slate-500">Waktu</dt>
-          <dd className="font-bold text-slate-800">{formatDateTime(report.submittedAt)}</dd>
+          <dd className="font-bold text-slate-800">
+            {formatDateTime(report.submittedAt)}
+          </dd>
         </div>
         <div className="rounded-lg bg-slate-50 px-3 py-2">
           <dt className="text-slate-500">Korban</dt>
-          <dd className="font-bold text-slate-800">{report.victimCount} jiwa</dd>
+          <dd className="font-bold text-slate-800">
+            {report.victimCount} jiwa
+          </dd>
         </div>
         <div className="rounded-lg bg-slate-50 px-3 py-2">
           <dt className="text-slate-500">
@@ -931,12 +1008,19 @@ function ResponseCell({ report, agency, onReceive, onOpen }) {
     );
   }
   return (
-    <button type="button" onClick={onOpen} title="Buka detail tanggapan" className="text-left">
+    <button
+      type="button"
+      onClick={onOpen}
+      title="Buka detail tanggapan"
+      className="text-left"
+    >
       <span className="inline-flex items-center gap-1.5 rounded-full bg-forestgreen/10 px-2.5 py-1 text-[11px] font-bold text-forestgreen">
-        <CheckCircle2 className="h-3 w-3" /> Diterima {formatTime(own.receivedAt)}
+        <CheckCircle2 className="h-3 w-3" /> Diterima{" "}
+        {formatTime(own.receivedAt)}
       </span>
       <span className="mt-1 block text-[11px] font-semibold text-slate-500">
-        {own.personnel || 0} anggota · {totalEquipmentUnits(own.equipment)} unit alat
+        {own.personnel || 0} anggota · {totalEquipmentUnits(own.equipment)} unit
+        alat
       </span>
       {other && (
         <span
@@ -944,7 +1028,8 @@ function ResponseCell({ report, agency, onReceive, onOpen }) {
             other.received ? "text-forestgreen" : "text-slate-400"
           }`}
         >
-          {RESPONSE_AGENCIES[otherKey]}: {other.received ? "sudah respons ✓" : "belum respons"}
+          {RESPONSE_AGENCIES[otherKey]}:{" "}
+          {other.received ? "sudah respons ✓" : "belum respons"}
         </span>
       )}
     </button>
@@ -1187,7 +1272,8 @@ function OwnResponsePanel({
             <CheckCircle2 className="h-5 w-5" /> Konfirmasi Laporan Diterima
           </button>
           <p className="mt-2 text-center text-[11px] text-slate-500">
-            Menandakan petugas {RESPONSE_AGENCIES[agency]} sudah menerima laporan ini.
+            Menandakan petugas {RESPONSE_AGENCIES[agency]} sudah menerima
+            laporan ini.
           </p>
         </>
       ) : (
@@ -1212,7 +1298,8 @@ function OwnResponsePanel({
 
           {/* Peralatan */}
           <p className="mt-4 mb-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-700">
-            <Package className="h-3.5 w-3.5" /> Peralatan yang dibawa (beserta jumlah)
+            <Package className="h-3.5 w-3.5" /> Peralatan yang dibawa (beserta
+            jumlah)
           </p>
           <div className="grid gap-1.5">
             {presets.map((name) => {
@@ -1222,7 +1309,9 @@ function OwnResponsePanel({
                 <div
                   key={name}
                   className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
-                    checked ? "border-primary/40 bg-primary/5" : "border-slate-200 bg-white"
+                    checked
+                      ? "border-primary/40 bg-primary/5"
+                      : "border-slate-200 bg-white"
                   }`}
                 >
                   <button
@@ -1233,7 +1322,9 @@ function OwnResponsePanel({
                   >
                     <span
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
-                        checked ? "border-primary bg-primary text-white" : "border-slate-300 bg-white"
+                        checked
+                          ? "border-primary bg-primary text-white"
+                          : "border-slate-300 bg-white"
                       }`}
                     >
                       {checked && <Check className="h-3 w-3" />}
@@ -1241,7 +1332,11 @@ function OwnResponsePanel({
                     {name}
                   </button>
                   {checked && (
-                    <NumberStepper compact value={item.qty} onChange={(value) => setQty(name, value)} />
+                    <NumberStepper
+                      compact
+                      value={item.qty}
+                      onChange={(value) => setQty(name, value)}
+                    />
                   )}
                 </div>
               );
@@ -1267,7 +1362,11 @@ function OwnResponsePanel({
                   <span className="flex-1 truncate font-semibold text-slate-700">
                     {item.name}
                   </span>
-                  <NumberStepper compact value={item.qty} onChange={(value) => setQty(item.name, value)} />
+                  <NumberStepper
+                    compact
+                    value={item.qty}
+                    onChange={(value) => setQty(item.name, value)}
+                  />
                 </div>
               ))}
           </div>
@@ -1297,11 +1396,15 @@ function OwnResponsePanel({
           </div>
 
           {/* Catatan */}
-          <p className="mt-4 mb-1.5 text-xs font-bold text-slate-700">Catatan (opsional)</p>
+          <p className="mt-4 mb-1.5 text-xs font-bold text-slate-700">
+            Catatan (opsional)
+          </p>
           <textarea
             value={draft.note}
             rows={2}
-            onChange={(e) => setDraft((prev) => ({ ...prev, note: e.target.value }))}
+            onChange={(e) =>
+              setDraft((prev) => ({ ...prev, note: e.target.value }))
+            }
             placeholder="Keterangan tambahan, mis. berangkat dari pos terdekat..."
             className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary"
           />
@@ -1335,7 +1438,8 @@ function OwnResponsePanel({
                 onClick={onFinish}
                 className="flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-forestgreen/50 bg-forestgreen/10 text-sm font-bold text-forestgreen transition-colors hover:bg-forestgreen/20"
               >
-                <ShieldCheck className="h-4 w-4" /> Tandai Tugas Instansi Ini Selesai
+                <ShieldCheck className="h-4 w-4" /> Tandai Tugas Instansi Ini
+                Selesai
               </button>
             )}
           </div>
@@ -1369,7 +1473,25 @@ function OwnResponsePanel({
  * menghubungi petugas di luar website; panel hanya papan jarak & status.
  */
 function NearbyReadyStaff({ report }) {
-  const staff = nearestReadyStaff(report.latitude, report.longitude);
+  const [staff, setStaff] = useState(() =>
+    nearestReadyStaff(report.latitude, report.longitude),
+  );
+
+  // Sinkronkan daftar siap dari server (bila backend aktif) sebelum
+  // dihitung jaraknya; gagal -> memakai data cermin lokal.
+  useEffect(() => {
+    let alive = true;
+    async function loadStaff() {
+      await syncReadyStaff();
+      if (alive) {
+        setStaff(nearestReadyStaff(report.latitude, report.longitude));
+      }
+    }
+    loadStaff();
+    return () => {
+      alive = false;
+    };
+  }, [report.latitude, report.longitude]);
 
   return (
     <section className="mt-3 rounded-2xl border-2 border-goldyellow/40 bg-goldyellow/5 p-4">
@@ -1382,15 +1504,15 @@ function NearbyReadyStaff({ report }) {
         </span>
       </header>
       <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-        Status siap ({Math.round(READY_TTL_MS / 3600000)} jam sejak pegawai menekan
-        tombol) dan diurutkan dari jarak terdekat ke TKP. Hubungi petugas langsung
-        di luar aplikasi ini.
+        Status siap ({Math.round(READY_TTL_MS / 3600000)} jam sejak pegawai
+        menekan tombol) dan diurutkan dari jarak terdekat ke TKP. Hubungi
+        petugas langsung di luar aplikasi ini.
       </p>
 
       {staff.length === 0 ? (
         <p className="mt-3 rounded-xl bg-white px-3 py-2.5 text-xs text-slate-500">
-          Belum ada pegawai SAR yang menandai dirinya siap. Pegawai dapat menekan
-          "Saya Siap Membantu" di aplikasi pelapor.
+          Belum ada pegawai SAR yang menandai dirinya siap. Pegawai dapat
+          menekan "Saya Siap Membantu" di aplikasi pelapor.
         </p>
       ) : (
         <ol className="mt-3 grid gap-1.5">
@@ -1419,7 +1541,8 @@ function NearbyReadyStaff({ report }) {
 }
 
 /** Chip tahap tanggapan satu instansi: Belum direspons s.d. Selesai. */
-function StageChip({ response }) {  let stage = "Belum direspons";
+function StageChip({ response }) {
+  let stage = "Belum direspons";
   let cls = "bg-slate-100 text-slate-500";
   if (response.finishedAt) {
     stage = "Selesai";
@@ -1432,7 +1555,9 @@ function StageChip({ response }) {  let stage = "Belum direspons";
     cls = "bg-goldyellow/20 text-yellow-700";
   }
   return (
-    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${cls}`}>
+    <span
+      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${cls}`}
+    >
       {stage}
     </span>
   );
@@ -1453,7 +1578,8 @@ function OtherResponsePanel({ report, otherAgency }) {
 
       {!(own.receivedAt || own.received) ? (
         <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
-          <Clock className="h-3.5 w-3.5" /> Belum ada tanggapan — menunggu konfirmasi.
+          <Clock className="h-3.5 w-3.5" /> Belum ada tanggapan — menunggu
+          konfirmasi.
         </p>
       ) : (
         <div className="mt-2 grid gap-1.5 text-xs text-slate-600">
@@ -1495,7 +1621,9 @@ function OtherResponsePanel({ report, otherAgency }) {
 /** Daftar alat ringkas (.nama × jumlah) — dipakai panel read-only. */
 function EquipmentSummary({ equipment }) {
   if (!equipment || equipment.length === 0) {
-    return <span className="text-xs text-slate-400">Tidak mencantumkan alat.</span>;
+    return (
+      <span className="text-xs text-slate-400">Tidak mencantumkan alat.</span>
+    );
   }
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -1547,7 +1675,9 @@ function ResponseTimeline({ response }) {
           >
             <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
             <span className="font-semibold text-slate-700">{event.label}</span>
-            {event.detail && <span className="text-slate-400">— {event.detail}</span>}
+            {event.detail && (
+              <span className="text-slate-400">— {event.detail}</span>
+            )}
             <span className="ml-auto whitespace-nowrap text-slate-400">
               {formatTime(event.time)}
             </span>

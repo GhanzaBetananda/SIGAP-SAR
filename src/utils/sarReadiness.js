@@ -55,6 +55,22 @@ export function readyRecord(username) {
 }
 
 /**
+ * Timpa seluruh daftar lokal (cermin hasil sinkron server).
+ * @param {Array} list daftar dari backend
+ */
+export function overwriteReadyStaff(list) {
+  writeStore(
+    (list ?? []).map((item) => ({
+      username: item.username ?? "",
+      name: item.name ?? "",
+      latitude: Number(item.latitude),
+      longitude: Number(item.longitude),
+      checkedInAt: item.checkedInAt ?? null,
+    })),
+  );
+}
+
+/**
  * Catat status siap + koordinat petugas (panggil dengan location=null
  * untuk mencabut status "siap").
  */

@@ -10,6 +10,7 @@ import LocationPicker from "../components/LocationPicker.jsx";
 import { useReport } from "../context/useReport.js";
 import { useAuth } from "../context/AuthProvider.jsx";
 import { readSimulatedReports } from "../context/reportState.js";
+import { saveReportOnServer } from "../utils/api.js";
 import PhotoPicker from "../components/PhotoPicker.jsx";
 import { validatePanicReport, validateInitialReport } from "../utils/validation.js";
 import { calculateDistances } from "../utils/distanceCalculator.js";
@@ -93,17 +94,19 @@ export default function PanicReport() {
     }).then((result) => {
       if (!result.isConfirmed) return;
 
-      // 3. Simulasi penyimpanan laporan pada frontend (state lokal + localStorage)
-      // 3. Simulasi penyimpanan laporan (id tiket + status awal + pelapor)
+      // 3. Simpan laporan: cermin lokal (simulasi) — dan bila backend
+      //    Apps Script sudah disambungkan, dikirim ke Google Sheet
       const ticketId = generateTicketId(readSimulatedReports());
-      saveReportLocally({
+      const completeReport = {
         ...report,
         ticketId,
         status: "baru",
         reporterUsername: session?.username ?? "",
         distances,
         submittedAt: new Date().toISOString(),
-      });
+      };
+      saveReportLocally(completeReport);
+      saveReportOnServer(completeReport);
       updateReport({ ticketId, submittedAt: new Date().toISOString() });
 
       // 4. Tautan WhatsApp disiapkan sesuai klasifikasi kejadian —
