@@ -714,7 +714,7 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
               <select
                 value={monthFilter}
                 onChange={(e) => setMonthFilter(e.target.value)}
-                className="h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-primary"
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-base font-semibold text-slate-700 outline-none focus:border-primary sm:text-sm"
               >
                 <option value="all">Semua bulan</option>
                 {MONTH_NAMES.map((label, index) => (
@@ -729,7 +729,7 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
               <select
                 value={yearFilter}
                 onChange={(e) => setYearFilter(e.target.value)}
-                className="h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-primary"
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-base font-semibold text-slate-700 outline-none focus:border-primary sm:text-sm"
               >
                 <option value="all">Semua tahun</option>
                 {yearOptions.map((year) => (
@@ -744,7 +744,7 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
               <select
                 value={classFilter}
                 onChange={(e) => setClassFilter(e.target.value)}
-                className="h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-primary"
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-base font-semibold text-slate-700 outline-none focus:border-primary sm:text-sm"
               >
                 <option value="all">Semua kejadian</option>
                 {CLASSIFICATIONS.map((item) => (
@@ -760,8 +760,8 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Cari tiket / pelapor..."
-                className="h-11 rounded-xl border-2 border-slate-200 bg-white px-4 text-sm outline-none focus:border-primary"
+                placeholder="Cari tiket / pelapor / wilayah..."
+                className="h-11 w-full rounded-xl border-2 border-slate-200 bg-white px-4 text-base outline-none focus:border-primary sm:text-sm"
               />
             </label>
           </div>
@@ -1237,7 +1237,7 @@ function ReportResponseModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
           {/* Ringkasan laporan */}
           <dl className="grid grid-cols-2 gap-2 text-xs">
             {[
@@ -1516,7 +1516,7 @@ function OwnResponsePanel({
                 }
               }}
               placeholder="Alat lain — ketik nama alatnya..."
-              className="h-11 flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm outline-none focus:border-primary"
+              className="h-11 min-w-0 flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 text-base outline-none focus:border-primary sm:text-sm"
             />
             <button
               type="button"
@@ -1539,7 +1539,7 @@ function OwnResponsePanel({
               setDraft((prev) => ({ ...prev, note: e.target.value }))
             }
             placeholder="Keterangan tambahan, mis. berangkat dari pos terdekat..."
-            className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary"
+            className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-base outline-none focus:border-primary sm:text-sm"
           />
 
           {error && (
@@ -1828,11 +1828,17 @@ function NumberStepper({ value, onChange, compact = false, max = 500 }) {
     onChange(Math.min(max, Math.max(compact ? 1 : 0, Math.round(next))));
   const styles = compact
     ? {
-        wrap: "flex h-8 items-center rounded-lg border border-slate-200 bg-white",
-        btn: "h-full w-7 text-slate-500 hover:text-primary",
+        // Kode baru: sedikit lebih besar agar nyaman disentuh di HP
+        wrap: "flex h-9 items-center rounded-lg border border-slate-200 bg-white",
+        btn: "h-full w-8 text-slate-500 hover:text-primary",
         input:
-          "w-8 border-x border-slate-200 text-center text-xs font-bold text-slate-800 outline-none",
+          "w-9 border-x border-slate-200 text-center text-sm font-bold text-slate-800 outline-none",
       }
+    // Versi lama — diaktifkan kembali bila ingin stepper padat seperti semula:
+    // wrap: "flex h-8 items-center rounded-lg border border-slate-200 bg-white",
+    // btn: "h-full w-7 text-slate-500 hover:text-primary",
+    // input:
+    //   "w-8 border-x border-slate-200 text-center text-xs font-bold text-slate-800 outline-none",
     : {
         wrap: "flex h-11 items-center rounded-xl border-2 border-slate-200 bg-white",
         btn: "h-full w-10 text-slate-500 hover:text-primary",
