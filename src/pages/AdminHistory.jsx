@@ -36,7 +36,7 @@ import {
   readSimulatedReports,
   writeSimulatedReports,
 } from "../context/reportState.js";
-import { getIncidentLabel, isFireIncident } from "../data/incidentTypes.js";
+import { CLASSIFICATIONS, getIncidentLabel, isFireIncident } from "../data/incidentTypes.js";
 import { districtLabel } from "../data/districts.js";
 import {
   REPORTER_CATEGORIES,
@@ -432,50 +432,34 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
     : reports;
 
   /**
-   * Filter periode (bulan + tahun) dan klasifikasi kejadian.
-   * Opsi diisi otomatis dari laporan yang ada agar tidak kosong.
+   * Filter periode (bulan + tahun) dan klasifikasi kejadian —
+   * Opsi dibuat STATIK (generik), tidak mengikuti isi laporan.
+   * Tahun: rentang 2 tahun sebelum & sesudah tahun berjalan.
    */
   const [monthFilter, setMonthFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState("all");
   const [classFilter, setClassFilter] = useState("all");
 
-  const monthOptions = useMemo(() => {
-    const map = new Map();
-    scopedReports.forEach((report) => {
-      if (!report.submittedAt) return;
-      const date = new Date(report.submittedAt);
-      if (Number.isNaN(date.getTime())) return;
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      const label = `${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
-      if (!map.has(key)) map.set(key, label);
-    });
-    return Array.from(map.entries())
-      .sort((a, b) => b[0].localeCompare(a[0]));
-  }, [scopedReports]);
-
-  const classOptions = useMemo(() => {
-    const map = new Map();
-    scopedReports.forEach((report) => {
-      if (!report.classification) return;
-      if (!map.has(report.classification)) {
-        map.set(
-          report.classification,
-          getIncidentLabel(report.classification) || report.classification,
-        );
-      }
-    });
-    return Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]));
-  }, [scopedReports]);
+  const yearOptions = useMemo(() => {
+    const now = new Date().getFullYear();
+    const years = [];
+    for (let year = now - 2; year <= now + 2; year++) years.push(year);
+    return years;
+  }, []);
 
   const filtered = scopedReports.filter((report) => {
     const fire = isFireIncident(report.classification);
     if (filter === FIRE && !fire) return false;
     if (filter === NON_FIRE && fire) return false;
-    if (monthFilter !== "all") {
+    if (monthFilter !== "all" || yearFilter !== "all") {
       const date = new Date(report.submittedAt ?? "");
       if (Number.isNaN(date.getTime())) return false;
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      if (key !== monthFilter) return false;
+      if (yearFilter !== "all" && date.getFullYear() !== Number(yearFilter)) {
+        return false;
+      }
+      if (monthFilter !== "all" && date.getMonth() !== Number(monthFilter)) {
+        return false;
+      }
     }
     if (classFilter !== "all" && report.classification !== classFilter) {
       return false;
@@ -722,8 +706,9 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
             ))}
           </div>
 
-          {/* Kode baru (presens): filter periode bulan + tahun & klasifikasi kejadian */}
-          <div className="grid gap-3 sm:grid-cols-3">
+          {/* Kode baru (presens): filter periode bulan + tahun & klasifikasi kejadian —
+              opsi statik/generik: 12 bulan, rentang tahun, dan 5 klasifikasi */}
+          <div className="grid gap-3 sm:grid-cols-4">
             <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
               Bulan
               <select
@@ -732,9 +717,24 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                 className="h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-primary"
               >
                 <option value="all">Semua bulan</option>
-                {monthOptions.map(([key, label]) => (
-                  <option key={key} value={key}>
+                {MONTH_NAMES.map((label, index) => (
+                  <option key={label} value={index}>
                     {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+              Tahun
+              <select
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-primary"
+              >
+                <option value="all">Semua tahun</option>
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
                   </option>
                 ))}
               </select>
@@ -747,9 +747,9 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                 className="h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-primary"
               >
                 <option value="all">Semua kejadian</option>
-                {classOptions.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
+                {CLASSIFICATIONS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
                   </option>
                 ))}
               </select>
