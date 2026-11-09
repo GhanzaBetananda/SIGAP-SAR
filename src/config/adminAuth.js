@@ -15,7 +15,7 @@
 export const ADMIN_ACCOUNTS = [
   {
     username: "KPPBANYUWANGI",
-    password: "ADMINSIGAPSAR",
+    password: "ADMINSATSETSAR",
     agency: "basarnas",
   },
   {
