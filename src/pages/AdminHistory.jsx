@@ -11,7 +11,7 @@
 // (src/config/backend.js), dengan localStorage sebagai cermin/fallback.
 // ============================================================
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   CheckCircle2,
@@ -87,6 +87,12 @@ function logoSet(agency) {
 }
 
 const FIRE = "fire";
+
+// Nama bulan untuk dropdown filter periode (indeks = bulan JS 0-11)
+const MONTH_NAMES = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
 const NON_FIRE = "non_fire";
 
 /** Dua nada pendek sebagai alarm laporan baru (tanpa berkas audio). */
@@ -425,10 +431,55 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
     ? reports.filter((report) => isFireIncident(report.classification))
     : reports;
 
+  /**
+   * Filter periode (bulan + tahun) dan klasifikasi kejadian.
+   * Opsi diisi otomatis dari laporan yang ada agar tidak kosong.
+   */
+  const [monthFilter, setMonthFilter] = useState("all");
+  const [classFilter, setClassFilter] = useState("all");
+
+  const monthOptions = useMemo(() => {
+    const map = new Map();
+    scopedReports.forEach((report) => {
+      if (!report.submittedAt) return;
+      const date = new Date(report.submittedAt);
+      if (Number.isNaN(date.getTime())) return;
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const label = `${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
+      if (!map.has(key)) map.set(key, label);
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]));
+  }, [scopedReports]);
+
+  const classOptions = useMemo(() => {
+    const map = new Map();
+    scopedReports.forEach((report) => {
+      if (!report.classification) return;
+      if (!map.has(report.classification)) {
+        map.set(
+          report.classification,
+          getIncidentLabel(report.classification) || report.classification,
+        );
+      }
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]));
+  }, [scopedReports]);
+
   const filtered = scopedReports.filter((report) => {
     const fire = isFireIncident(report.classification);
     if (filter === FIRE && !fire) return false;
     if (filter === NON_FIRE && fire) return false;
+    if (monthFilter !== "all") {
+      const date = new Date(report.submittedAt ?? "");
+      if (Number.isNaN(date.getTime())) return false;
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      if (key !== monthFilter) return false;
+    }
+    if (classFilter !== "all" && report.classification !== classFilter) {
+      return false;
+    }
     if (filter === "baru" && statusGroup(report.status ?? "baru") !== "baru") {
       return false;
     }
@@ -651,7 +702,7 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
         </section>
 
         {/* Filter + pencarian */}
-        <section className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <section className="mt-5 flex flex-col gap-3">
           <div className="flex flex-wrap gap-2">
             {FILTERS.map((item) => (
               <button
@@ -670,13 +721,50 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
               </button>
             ))}
           </div>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari tiket / pelapor / wilayah..."
-            className="h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-4 text-base outline-none focus:border-primary sm:max-w-xs"
-          />
+
+          {/* Kode baru (presens): filter periode bulan + tahun & klasifikasi kejadian */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+              Bulan
+              <select
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-primary"
+              >
+                <option value="all">Semua bulan</option>
+                {monthOptions.map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+              Klasifikasi Kejadian
+              <select
+                value={classFilter}
+                onChange={(e) => setClassFilter(e.target.value)}
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-primary"
+              >
+                <option value="all">Semua kejadian</option>
+                {classOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+              Pencarian
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari tiket / pelapor..."
+                className="h-11 rounded-xl border-2 border-slate-200 bg-white px-4 text-sm outline-none focus:border-primary"
+              />
+            </label>
+          </div>
         </section>
 
         {/* Daftar history laporan */}
