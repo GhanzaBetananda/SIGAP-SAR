@@ -66,11 +66,15 @@ export function buildReportMessage(report, distances) {
     `Jarak dari Kantor BASARNAS: ${formatDistanceKm(distances?.basarnas ?? null)}`,
   ];
 
-  if (fire) {
-    lines.push(
-      `Jarak dari Kantor Manggala Agni: ${formatDistanceKm(distances?.manggalaAgni ?? null)}`,
-    );
-  }
+  // Kode baru (presens): rincian jarak hanya BASARNAS
+
+  // [PRESNAS 2026-11-09] — jarak Manggala Agni dimatikan sementara;
+  // aktifkan kembali saat integrasi Manggala Agni
+  // if (fire) {
+  //   lines.push(
+  //     `Jarak dari Kantor Manggala Agni: ${formatDistanceKm(distances?.manggalaAgni ?? null)}`,
+  //   );
+  // }
 
   lines.push(
     "",
@@ -109,14 +113,18 @@ export function getWhatsAppTargets(report, distances) {
     },
   ];
 
-  if (isFireIncident(report.classification)) {
-    targets.push({
-      id: "manggala_agni",
-      label: "Kirim ke WhatsApp Manggala Agni",
-      number: MANGGALA_AGNI_WA_NUMBER,
-      url: buildWhatsAppUrl(MANGGALA_AGNI_WA_NUMBER, message),
-    });
-  }
+  // Kode baru (presens): tujuan WhatsApp hanya BASARNAS
+
+  // [PRESNAS 2026-11-09] — tujuan Manggala Agni dimatikan sementara;
+  // aktifkan kembali saat integrasi Manggala Agni
+  // if (isFireIncident(report.classification)) {
+  //   targets.push({
+  //     id: "manggala_agni",
+  //     label: "Kirim ke WhatsApp Manggala Agni",
+  //     number: MANGGALA_AGNI_WA_NUMBER,
+  //     url: buildWhatsAppUrl(MANGGALA_AGNI_WA_NUMBER, message),
+  //   });
+  // }
 
   return targets;
 }

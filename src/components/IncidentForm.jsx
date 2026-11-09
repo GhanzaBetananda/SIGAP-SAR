@@ -1,11 +1,20 @@
 import { useReport } from "../context/useReport.js";
-import {
-  CLASSIFICATIONS,
-  NATURAL_DISASTER_SUB_OPTIONS,
-} from "../data/incidentTypes.js";
-import { Flame, CloudSun } from "lucide-react";
+import { CLASSIFICATIONS } from "../data/incidentTypes.js";
 
-const STANDALONE_OPTIONS = CLASSIFICATIONS.filter((item) => !item.value.startsWith("bencana_alam"));
+// [PRESNAS 2026-11-09] — sub-pilihan kebakaran dimatikan sementara.
+// import {
+//   CLASSIFICATIONS,
+//   NATURAL_DISASTER_SUB_OPTIONS,
+// } from "../data/incidentTypes.js";
+// import { Flame, CloudSun } from "lucide-react";
+
+// Kode baru: semua klasifikasi jadi chip generik (termasuk Bencana Alam)
+const STANDALONE_OPTIONS = CLASSIFICATIONS;
+
+// [PRESNAS 2026-11-09] filter lama — memisahkan keluarga bencana alam
+//   ke sub-tab terpisah; aktifkan kembali bersama integrasi Manggala Agni
+// const STANDALONE_OPTIONS = CLASSIFICATIONS.filter((item) => !item.value.startsWith("bencana_alam"));
+// const STANDALONE_OPTIONS = CLASSIFICATIONS.filter((item) => !item.value.startsWith("bencana_alam"));
 
 /**
  * Form klasifikasi kejadian + jumlah korban.
@@ -15,7 +24,8 @@ const STANDALONE_OPTIONS = CLASSIFICATIONS.filter((item) => !item.value.startsWi
 export default function IncidentForm({ errors = {} }) {
   const { report, updateReport } = useReport();
 
-  const isNaturalDisasterFamily = report.classification.startsWith("bencana_alam");
+  // [PRESNAS 2026-11-09] — tidak dipakai saat sub-tab kebakaran mati
+  // const isNaturalDisasterFamily = report.classification.startsWith("bencana_alam");
 
   function handleClassification(value) {
     updateReport({ classification: value });
@@ -40,8 +50,11 @@ export default function IncidentForm({ errors = {} }) {
           />
         ))}
 
-        {/* Kategori induk: Bencana Alam — pilih satu sub klasifikasi */}
-        <div
+        {/* Kode baru: Bencana Alam ikut sebagai chip generik di atas */}
+
+        {/* [PRESNAS 2026-11-09] — blok sub-pilihan Kebakaran / Non-Kebakaran
+            dimatikan sementara; aktifkan kembali saat integrasi Manggala Agni
+            <div
           className={`grid gap-2.5 rounded-xl border-2 p-4 sm:col-span-2
             ${isNaturalDisasterFamily ? "border-fireorange bg-fireorange/10" : "border-slate-200 bg-white"}`}
         >
@@ -74,6 +87,7 @@ export default function IncidentForm({ errors = {} }) {
             })}
           </div>
         </div>
+        */}
       </div>
       {errors.classification && (
         <p className="mt-2 text-sm font-medium text-red-600">{errors.classification}</p>

@@ -49,11 +49,15 @@ var TAB_PREFIX = "laporan-";
 var TAB_FALLBACK = "laporan-lainnya";
 
 // Peta klasifikasi kejadian → nama tab
+// [PRESNAS 2026-11-09] — klasifikasi "bencana_alam" umum ditambahkan
+// untuk mode presens BASARNAS; klasifikasi kebakaran/non-kebakaran
+// TETAP dipertahankan (dipakai lagi saat Manggala Agni menyusul).
 var CLASSIFICATION_TABS = {
   penerbangan: "laporan-penerbangan",
   pelayaran: "laporan-pelayaran",
   kondisi_membahayakan_manusia: "laporan-kondisi_membahayakan_manusia",
   penanganan_khusus: "laporan-penanganan_khusus",
+  bencana_alam: "laporan-bencana_alam",
   bencana_alam_kebakaran: "laporan-bencana_alam_kebakaran",
   bencana_alam_non_kebakaran: "laporan-bencana_alam_non_kebakaran",
 };

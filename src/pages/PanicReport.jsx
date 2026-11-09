@@ -224,9 +224,13 @@ export default function PanicReport() {
             />
             <p className="flex items-start gap-2 text-center text-xs leading-relaxed text-slate-500">
               <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              {/* Kode baru (presens): distribusi menyebut BASARNAS saja */}
               Setelah ditekan, laporan disimpan pada simulasi frontend lalu tautan
-              WhatsApp disiapkan sesuai klasifikasi kejadian
-              {fire ? " (BASARNAS + Manggala Agni)" : " (BASARNAS)"}.
+              WhatsApp disiapkan untuk BASARNAS.
+              {/* [PRESNAS 2026-11-09] — teks lama dengan Manggala Agni;
+                  aktifkan kembali saat integrasi Manggala Agni:
+                  {fire ? " (BASARNAS + Manggala Agni)" : " (BASARNAS)"}.
+               */}
             </p>
           </div>
         </div>

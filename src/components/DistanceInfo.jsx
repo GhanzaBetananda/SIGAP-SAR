@@ -1,14 +1,18 @@
-import { Building2, Flame, Ruler } from "lucide-react";
+import { Building2, Ruler } from "lucide-react";
 import { formatDistanceKm } from "../utils/distanceCalculator.js";
-import { isFireIncident } from "../data/incidentTypes.js";
+
+// [PRESNAS 2026-11-09] — kartu Manggala Agni dimatikan sementara.
+// import { isFireIncident } from "../data/incidentTypes.js";
 
 /**
  * Hasil perhitungan jarak TKP ke kantor instansi (Haversine).
- * Non-Kebakaran -> hanya BASARNAS.
- * Kebakaran     -> BASARNAS + Manggala Agni.
+ * Kode baru (presens): semua laporan hanya menghitung jarak BASARNAS.
+ * [PRESNAS] Kebakaran -> BASARNAS + Manggala Agni (aktifkan saat menyusul).
  */
 export default function DistanceInfo({ report, distances }) {
-  const fire = isFireIncident(report.classification);
+  // [PRESNAS 2026-11-09] — dimatikan sementara
+  // const fire = isFireIncident(report.classification);
+  const fire = false;
 
   if (!distances) {
     return (
@@ -37,6 +41,10 @@ export default function DistanceInfo({ report, distances }) {
           value={formatDistanceKm(distances.basarnas)}
           accent={fire ? "slate" : "orange"}
         />
+        {/* Kode baru (presens): hanya kartu BASARNAS di atas */}
+
+        {/* [PRESNAS 2026-11-09] — kartu Manggala Agni dimatikan sementara;
+            aktifkan kembali saat integrasi Manggala Agni
         {fire && (
           <DistanceCard
             icon={<Flame className="h-6 w-6" />}
@@ -45,6 +53,7 @@ export default function DistanceInfo({ report, distances }) {
             accent="red"
           />
         )}
+        */}
       </div>
 
       <p className="mt-3 text-xs text-slate-400">

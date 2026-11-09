@@ -103,8 +103,12 @@ export default function Home() {
               Melapor dari TKP
             </h1>
             <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+            {/* Kode baru (presens): hanya menyebut BASARNAS */}
               Login sebagai akun Anda, lengkapi detail kejadian, rekam suara, lalu laporan
+              disiapkan untuk BASARNAS melalui WhatsApp.
+              {/* [PRESNAS 2026-11-09] — teks lama; aktifkan saat Manggala Agni menyusul:
               disiapkan untuk BASARNAS dan Manggala Agni melalui WhatsApp sesuai klasifikasi.
+               */}
             </p>
 
             <div className="my-8 flex justify-center">
@@ -137,7 +141,12 @@ export default function Home() {
             <StepCard
               icon={<Send className="h-6 w-6" />}
               title="3. Distribusi"
-              items={["Kebakaran: BASARNAS + Manggala Agni", "Non-kebakaran: BASARNAS", "Tautan wa.me siap kirim"]}
+              items={
+                /* Kode baru (presens): distribusi menyebut BASARNAS saja */
+                ["Laporan disiapkan untuk BASARNAS", "Tautan wa.me siap kirim"]
+                // [PRESNAS 2026-11-09] — daftar lama; aktifkan saat Manggala Agni menyusul:
+                // items={["Kebakaran: BASARNAS + Manggala Agni", "Non-kebakaran: BASARNAS", "Tautan wa.me siap kirim"]}
+              }
             />
           </section>
         </>

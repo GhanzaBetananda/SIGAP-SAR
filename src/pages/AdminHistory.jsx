@@ -150,11 +150,17 @@ function reporterRegion(report) {
   return "";
 }
 
+// Kode baru (presens): distribusi tampil "BASARNAS" saja
 function statusDistribusi(report) {
-  return isFireIncident(report.classification)
-    ? "BASARNAS + Manggala Agni"
-    : "BASARNAS";
+  return "BASARNAS";
 }
+
+// [PRESNAS 2026-11-09] — versi penanganan silang; aktifkan saat Manggala Agni menyusul:
+// function statusDistribusi(report) {
+//   return isFireIncident(report.classification)
+//     ? "BASARNAS + Manggala Agni"
+//     : "BASARNAS";
+// }
 
 /**
  * Gerbang admin: halaman login ditampilkan selama belum terautentikasi.
@@ -470,6 +476,8 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
     ).length,
   };
 
+  // Kode baru (presens): panel BASARNAS memakai filter status,
+  // tanpa filter Kebakaran / Non-Kebakaran
   const FILTERS = isAgni
     ? [
         { value: "all", label: "Semua", count: stats.total },
@@ -483,9 +491,22 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
       ]
     : [
         { value: "all", label: "Semua", count: stats.total },
-        { value: FIRE, label: "Kebakaran", count: stats.fire },
-        { value: NON_FIRE, label: "Non-Kebakaran", count: stats.nonFire },
+        {
+          value: "baru",
+          label: "Baru",
+          count: stats.total - stats.diproses - stats.selesai,
+        },
+        { value: "diproses", label: "Diproses", count: stats.diproses },
+        { value: "selesai", label: "Selesai", count: stats.selesai },
       ];
+
+  // [PRESNAS 2026-11-09] — filter Kebakaran/Non-Kebakaran dimatikan sementara;
+  // aktifkan kembali saat integrasi Manggala Agni:
+  // : [
+  //     { value: "all", label: "Semua", count: stats.total },
+  //     { value: FIRE, label: "Kebakaran", count: stats.fire },
+  //     { value: NON_FIRE, label: "Non-Kebakaran", count: stats.nonFire },
+  //   ];
 
   return (
     <div className="flex min-h-dvh flex-col bg-lightbg">
@@ -569,6 +590,26 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
             tint="bg-primary"
           />
           {!isAgni && (
+            /* Kode baru (presens): kartu Kebakaran & Non-Kebakaran
+               disembunyikan untuk panel BASARNAS */
+            <StatCard
+              icon={<ListChecks className="h-5 w-5" />}
+              label="Laporan Aktif"
+              value={stats.diproses}
+              tint="bg-fireorange"
+            />
+          )}
+          {!isAgni && (
+            <StatCard
+              icon={<ShieldCheck className="h-5 w-5" />}
+              label="Selesai"
+              value={stats.selesai}
+              tint="bg-forestgreen"
+            />
+          )}
+          {/* [PRESNAS 2026-11-09] — kartu Kebakaran / Non-Kebakaran dimatikan
+              sementara; aktifkan kembali saat integrasi Manggala Agni:
+          {!isAgni && (
             <StatCard
               icon={<Flame className="h-5 w-5" />}
               label="Kebakaran"
@@ -584,6 +625,7 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
               tint="bg-fireorange"
             />
           )}
+          */}
           {isAgni && (
             <StatCard
               icon={<RefreshCw className="h-5 w-5" />}
