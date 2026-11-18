@@ -24,7 +24,6 @@ import {
   LogOut,
   MapPin,
   Minus,
-  Package,
   Plus,
   RefreshCw,
   ShieldCheck,
@@ -58,17 +57,18 @@ import {
 } from "../components/ReportHistorySection.jsx";
 import {
   applyResponse,
+  OPERASI_MAX_HARI,
   RESPONSE_AGENCIES,
   responseFor,
   statusGroup,
   totalEquipmentUnits,
+  totalEquipmentUnitsAll,
+  totalPersonnelAll,
 } from "../utils/reportResponses.js";
 import { EQUIPMENT_PRESETS } from "../data/responsePresets.js";
-import { nearestReadyStaff, READY_TTL_MS } from "../utils/sarReadiness.js";
 import {
   loadReportsData,
   patchReportOnServer,
-  syncReadyStaff,
 } from "../utils/api.js";
 
 const LOGOS_BASARNAS = [
@@ -379,15 +379,14 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
   );
 
   /**
-   * Simpan tim & peralatan instansi sendiri -> status naik menjadi
-   * "diterjunkan". `payload` = { personnel, equipment, note }.
+   * Simpan catatan operasi harian instansi sendiri -> status naik menjadi
+   * "diterjunkan". `payload` = { operasi: [{hari, tanggal, personnel, equipment, kesimpulan, createdAt}, ...] }.
    */
   const saveDispatch = useCallback(
     (ticketId, payload) => {
       updateReport(ticketId, (report) =>
         applyResponse(report, agency, (prev) => ({
-          ...payload,
-          dispatchedAt: prev.dispatchedAt ?? new Date().toISOString(),
+          operasi: payload.operasi,
         })),
       );
     },
@@ -1135,6 +1134,9 @@ function ResponseCell({ report, agency, onReceive, onOpen }) {
     : null;
   const other = otherKey ? responseFor(report, otherKey) : null;
 
+  const totalPersonnel = totalPersonnelAll(own.operasi);
+  const totalEquipment = totalEquipmentUnitsAll(own.operasi);
+
   if (!own.received) {
     return (
       <button
@@ -1158,10 +1160,12 @@ function ResponseCell({ report, agency, onReceive, onOpen }) {
         <CheckCircle2 className="h-3 w-3" /> Diterima{" "}
         {formatTime(own.receivedAt)}
       </span>
-      <span className="mt-1 block text-[11px] font-semibold text-slate-500">
-        {own.personnel || 0} anggota · {totalEquipmentUnits(own.equipment)} unit
-        alat
-      </span>
+      {own.operasi.length > 0 && (
+        <span className="mt-1 block text-[11px] font-semibold text-slate-500">
+          {totalPersonnel} anggota · {totalEquipment} unit alat ·
+          {own.operasi.length} hari operasi
+        </span>
+      )}
       {other && (
         <span
           className={`mt-0.5 block text-[10px] font-bold ${
@@ -1266,11 +1270,6 @@ function ReportResponseModal({
             ))}
           </dl>
 
-          {/* Petugas SAR siap-siap berdasarkan jarak ke TKP (hanya BASARNAS) */}
-          {agency === "basarnas" && report.latitude != null && (
-            <NearbyReadyStaff report={report} />
-          )}
-
           <div className="mt-3 flex flex-wrap gap-2">
             {report.photoUrl && (
               <a
@@ -1336,66 +1335,133 @@ function OwnResponsePanel({
   const own = responseFor(report, agency);
   const finished = Boolean(own.finishedAt);
   const presets = EQUIPMENT_PRESETS[agency] ?? [];
+  const today = new Date().toISOString().slice(0, 10);
   const [draft, setDraft] = useState(() => ({
-    personnel: own.personnel || 0,
-    equipment: (own.equipment ?? []).map((item) => ({ ...item })),
-    note: own.note ?? "",
+    operasi: (own.operasi ?? []).map((item) => ({ ...item })),
   }));
   const [customName, setCustomName] = useState("");
   const [error, setError] = useState("");
 
-  function togglePreset(name) {
-    setError("");
+  const nextHari = useMemo(() => {
+    const used = (draft.operasi ?? []).map((o) => o.hari);
+    for (let h = 1; h <= OPERASI_MAX_HARI; h++) {
+      if (!used.includes(h)) return h;
+    }
+    return null;
+  }, [draft.operasi]);
+
+  function addOperasiEntry() {
+    if (!nextHari) {
+      setError(`Maksimal ${OPERASI_MAX_HARI} hari entri operasi.`);
+      return;
+    }
+    setDraft((prev) => ({
+      ...prev,
+      operasi: [
+        ...prev.operasi,
+        {
+          hari: nextHari,
+          tanggal: today,
+          personnel: 0,
+          equipment: [],
+          kesimpulan: "",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }));
+  }
+
+  function removeOperasiEntry(index: number) {
+    setDraft((prev) => ({
+      ...prev,
+      operasi: prev.operasi.filter((_, i) => i !== index),
+    }));
+  }
+
+  function setPersonnel(index: number, value: number) {
     setDraft((prev) => {
-      const exists = prev.equipment.some((item) => item.name === name);
-      return {
-        ...prev,
-        equipment: exists
-          ? prev.equipment.filter((item) => item.name !== name)
-          : [...prev.equipment, { name, qty: 1 }],
-      };
+      const next = [...prev.operasi];
+      next[index] = { ...next[index], personnel: value };
+      return { ...prev, operasi: next };
     });
   }
 
-  function setQty(name, qty) {
-    setDraft((prev) => ({
-      ...prev,
-      equipment: prev.equipment.map((item) =>
-        item.name === name
-          ? { ...item, qty: Math.max(1, Math.round(Number(qty) || 1)) }
-          : item,
-      ),
-    }));
+  function setKesimpulan(index: number, value: string) {
+    setDraft((prev) => {
+      const next = [...prev.operasi];
+      next[index] = { ...next[index], kesimpulan: value };
+      return { ...prev, operasi: next };
+    });
   }
 
-  function addCustom() {
+  function togglePreset(entryIndex: number, name: string) {
+    setDraft((prev) => {
+      const next = [...prev.operasi];
+      const entry = next[entryIndex];
+      const exists = entry.equipment.some((item) => item.name === name);
+      next[entryIndex] = {
+        ...entry,
+        equipment: exists
+          ? entry.equipment.filter((item) => item.name !== name)
+          : [...entry.equipment, { name, qty: 1 }],
+      };
+      return { ...prev, operasi: next };
+    });
+  }
+
+  function setQty(entryIndex: number, name: string, qty: number) {
+    setDraft((prev) => {
+      const next = [...prev.operasi];
+      const entry = next[entryIndex];
+      next[entryIndex] = {
+        ...entry,
+        equipment: entry.equipment.map((item) =>
+          item.name === name
+            ? { ...item, qty: Math.max(1, Math.round(Number(qty) || 1)) }
+            : item,
+        ),
+      };
+      return { ...prev, operasi: next };
+    });
+  }
+
+  function addCustom(entryIndex: number) {
     const name = customName.trim();
-    if (!name || draft.equipment.some((item) => item.name === name)) return;
-    setDraft((prev) => ({
-      ...prev,
-      equipment: [...prev.equipment, { name, qty: 1 }],
-    }));
+    if (!name) return;
+    setDraft((prev) => {
+      const next = [...prev.operasi];
+      const entry = next[entryIndex];
+      if (entry.equipment.some((item) => item.name === name)) return prev;
+      next[entryIndex] = {
+        ...entry,
+        equipment: [...entry.equipment, { name, qty: 1 }],
+      };
+      return { ...prev, operasi: next };
+    });
     setCustomName("");
   }
 
-  /** Hapus item alat kustom dari draft. */
-  function removeEquipment(name) {
-    setDraft((prev) => ({
-      ...prev,
-      equipment: prev.equipment.filter((item) => item.name !== name),
-    }));
+  function removeEquipment(entryIndex: number, name: string) {
+    setDraft((prev) => {
+      const next = [...prev.operasi];
+      const entry = next[entryIndex];
+      next[entryIndex] = {
+        ...entry,
+        equipment: entry.equipment.filter((item) => item.name !== name),
+      };
+      return { ...prev, operasi: next };
+    });
   }
 
   function handleSave() {
-    if (!(Number(draft.personnel) >= 1)) {
-      setError("Isi jumlah anggota terlebih dahulu (minimal 1).");
+    const valid = draft.operasi.every((o) => Number(o.personnel) >= 1);
+    if (!valid) {
+      setError("Isi jumlah anggota untuk setiap hari entri operasi (minimal 1).");
       return;
     }
     setError("");
     onSaveDispatch({
-      personnel: Number(draft.personnel),
-      equipment: draft.equipment,
-      note: draft.note.trim(),
+      operasi: draft.operasi,
     });
   }
 
@@ -1430,130 +1496,184 @@ function OwnResponsePanel({
             {own.receivedBy ? ` oleh ${own.receivedBy}` : ""}
           </p>
 
-          {/* Jumlah anggota */}
+          {/* Operasi harian (maks 7 hari) */}
           <p className="mt-4 mb-1.5 text-xs font-bold text-slate-700">
-            Jumlah anggota diterjunkan
+            Catatan Operasi Harian (maksimal {OPERASI_MAX_HARI} hari)
           </p>
-          <NumberStepper
-            value={draft.personnel}
-            onChange={(value) => {
-              setError("");
-              setDraft((prev) => ({ ...prev, personnel: value }));
-            }}
-          />
-
-          {/* Peralatan */}
-          <p className="mt-4 mb-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-700">
-            <Package className="h-3.5 w-3.5" /> Peralatan yang dibawa (beserta
-            jumlah)
-          </p>
-          <div className="grid gap-1.5">
-            {presets.map((name) => {
-              const item = draft.equipment.find((entry) => entry.name === name);
-              const checked = Boolean(item);
-              return (
-                <div
-                  key={name}
-                  className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
-                    checked
-                      ? "border-primary/40 bg-primary/5"
-                      : "border-slate-200 bg-white"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    disabled={finished}
-                    onClick={() => togglePreset(name)}
-                    className="flex flex-1 items-center gap-2 text-left font-semibold text-slate-700 disabled:opacity-60"
-                  >
-                    <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
-                        checked
-                          ? "border-primary bg-primary text-white"
-                          : "border-slate-300 bg-white"
-                      }`}
-                    >
-                      {checked && <Check className="h-3 w-3" />}
+          {draft.operasi.length === 0 && (
+            <button
+              type="button"
+              onClick={addOperasiEntry}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary bg-white px-4 text-sm font-bold text-primary transition-colors hover:bg-primary/5 active:scale-[0.98]"
+            >
+              <Plus className="h-4 w-4" /> Tambah Entri Operasi Hari Pertama
+            </button>
+          )}
+          <div className="grid gap-2">
+            {draft.operasi.map((entry, index) => (
+              <div
+                key={index}
+                className="rounded-xl border border-primary/40 bg-primary/5 p-3"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-1">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
+                      {entry.hari}
                     </span>
-                    {name}
-                  </button>
-                  {checked && (
-                    <NumberStepper
-                      compact
-                      value={item.qty}
-                      onChange={(value) => setQty(name, value)}
-                    />
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Alat di luar preset */}
-            {draft.equipment
-              .filter((item) => !presets.includes(item.name))
-              .map((item) => (
-                <div
-                  key={item.name}
-                  className="flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/5 px-3 py-2 text-sm"
-                >
+                    <span className="text-sm font-semibold text-slate-800">
+                      Hari {entry.hari} — {entry.tanggal}
+                    </span>
+                  </div>
                   <button
                     type="button"
+                    onClick={() => removeOperasiEntry(index)}
                     disabled={finished}
-                    onClick={() => removeEquipment(item.name)}
-                    aria-label={`Hapus ${item.name}`}
                     className="rounded-md p-1 text-red-500 hover:bg-red-50 disabled:opacity-40"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
-                  <span className="flex-1 truncate font-semibold text-slate-700">
-                    {item.name}
-                  </span>
+                </div>
+
+                {/* Jumlah anggota */}
+                <div className="mb-2">
+                  <p className="text-[10px] font-bold text-slate-600 uppercase">
+                    Jumlah anggota hari ini
+                  </p>
                   <NumberStepper
-                    compact
-                    value={item.qty}
-                    onChange={(value) => setQty(item.name, value)}
+                    value={entry.personnel}
+                    onChange={(v) => setPersonnel(index, v)}
                   />
                 </div>
-              ))}
-          </div>
 
-          <div className="mt-2 flex gap-2">
-            <input
-              type="text"
-              value={customName}
-              onChange={(e) => setCustomName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addCustom();
-                }
-              }}
-              placeholder="Alat lain — ketik nama alatnya..."
-              className="h-11 min-w-0 flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 text-base outline-none focus:border-primary sm:text-sm"
-            />
-            <button
-              type="button"
-              onClick={addCustom}
-              disabled={!customName.trim()}
-              className="flex h-11 items-center gap-1 rounded-xl bg-slate-800 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-700 disabled:opacity-40"
-            >
-              <Plus className="h-4 w-4" /> Tambah
-            </button>
-          </div>
+                {/* Peralatan */}
+                <div className="mb-2">
+                  <p className="text-[10px] font-bold text-slate-600 uppercase">
+                    Peralatan yang dibawa (beserta jumlah)
+                  </p>
+                  <div className="grid gap-1.5">
+                    {presets.map((name) => {
+                      const item = entry.equipment.find(
+                        (e) => e.name === name,
+                      );
+                      const checked = Boolean(item);
+                      return (
+                        <div
+                          key={name}
+                          className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
+                            checked
+                              ? "border-primary/40 bg-primary/5"
+                              : "border-slate-200 bg-white"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            disabled={finished}
+                            onClick={() => togglePreset(index, name)}
+                            className="flex flex-1 items-center gap-2 text-left font-semibold text-slate-700 disabled:opacity-60"
+                          >
+                            <span
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
+                                checked
+                                  ? "border-primary bg-primary text-white"
+                                  : "border-slate-300 bg-white"
+                              }`}
+                            >
+                              {checked && <Check className="h-3 w-3" />}
+                            </span>
+                            {name}
+                          </button>
+                          {checked && (
+                            <NumberStepper
+                              compact
+                              value={item.qty}
+                              onChange={(v) => setQty(index, name, v)}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
 
-          {/* Catatan */}
-          <p className="mt-4 mb-1.5 text-xs font-bold text-slate-700">
-            Catatan (opsional)
-          </p>
-          <textarea
-            value={draft.note}
-            rows={2}
-            onChange={(e) =>
-              setDraft((prev) => ({ ...prev, note: e.target.value }))
-            }
-            placeholder="Keterangan tambahan, mis. berangkat dari pos terdekat..."
-            className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-base outline-none focus:border-primary sm:text-sm"
-          />
+                    {/* Alat di luar preset */}
+                    {entry.equipment
+                      .filter((item) => !presets.includes(item.name))
+                      .map((item) => (
+                        <div
+                          key={item.name}
+                          className="flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/5 px-3 py-2 text-sm"
+                        >
+                          <button
+                            type="button"
+                            disabled={finished}
+                            onClick={() => removeEquipment(index, item.name)}
+                            aria-label={`Hapus ${item.name}`}
+                            className="rounded-md p-1 text-red-500 hover:bg-red-50 disabled:opacity-40"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                          <span className="flex-1 truncate font-semibold text-slate-700">
+                            {item.name}
+                          </span>
+                          <NumberStepper
+                            compact
+                            value={item.qty}
+                            onChange={(v) => setQty(index, item.name, v)}
+                          />
+                        </div>
+                      ))}
+                  </div>
+
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addCustom(index);
+                        }
+                      }}
+                      placeholder="Alat lain — ketik nama alatnya..."
+                      className="h-11 min-w-0 flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 text-base outline-none focus:border-primary sm:text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => addCustom(index)}
+                      disabled={!customName.trim() || finished}
+                      className="flex h-11 items-center gap-1 rounded-xl bg-slate-800 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-700 disabled:opacity-40"
+                    >
+                      <Plus className="h-4 w-4" /> Tambah
+                    </button>
+                  </div>
+                </div>
+
+                {/* Kesimpulan */}
+                <div className="mb-2">
+                  <p className="text-[10px] font-bold text-slate-600 uppercase">
+                    Kesimpulan Operasi
+                  </p>
+                  <textarea
+                    value={entry.kesimpulan}
+                    rows={2}
+                    onChange={(e) => setKesimpulan(index, e.target.value)}
+                    placeholder="Kesimpulan operasi hari ini..."
+                    disabled={finished}
+                    className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-base outline-none focus:border-primary sm:text-sm disabled:bg-slate-50"
+                  />
+                </div>
+
+                {draft.operasi.length < OPERASI_MAX_HARI && index === draft.operasi.length - 1 && !finished && (
+                  <button
+                    type="button"
+                    onClick={addOperasiEntry}
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary bg-white px-4 text-sm font-bold text-primary transition-colors hover:bg-primary/5 active:scale-[0.98]"
+                  >
+                    <Plus className="h-4 w-4" /> Tambah Entri Operasi Besok
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
 
           {error && (
             <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
@@ -1566,19 +1686,12 @@ function OwnResponsePanel({
             <button
               type="button"
               onClick={handleSave}
-              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-white transition-all hover:bg-primary-dark active:scale-[0.98]"
+              disabled={finished}
+              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-white transition-all hover:bg-primary-dark active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {own.dispatchedAt ? (
-                <>
-                  <RefreshCw className="h-5 w-5" /> Perbarui Data Tim
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-5 w-5" /> Simpan &amp; Diterjunkan
-                </>
-              )}
+              <CheckCircle2 className="h-5 w-5" /> Simpan Entri Operasi
             </button>
-            {own.dispatchedAt && !finished && (
+            {draft.operasi.length > 0 && !finished && (
               <button
                 type="button"
                 onClick={onFinish}
@@ -1613,79 +1726,6 @@ function OwnResponsePanel({
   );
 }
 
-/**
- * Daftar pegawai SAR berstatus SIAP, diurutkan jarak terdekat ke TKP
- * laporan. Tombol "Hubungi via WA" sengaja TIDAK disediakan — koordinator
- * menghubungi petugas di luar website; panel hanya papan jarak & status.
- */
-function NearbyReadyStaff({ report }) {
-  const [staff, setStaff] = useState(() =>
-    nearestReadyStaff(report.latitude, report.longitude),
-  );
-
-  // Sinkronkan daftar siap dari server (bila backend aktif) sebelum
-  // dihitung jaraknya; gagal -> memakai data cermin lokal.
-  useEffect(() => {
-    let alive = true;
-    async function loadStaff() {
-      await syncReadyStaff();
-      if (alive) {
-        setStaff(nearestReadyStaff(report.latitude, report.longitude));
-      }
-    }
-    loadStaff();
-    return () => {
-      alive = false;
-    };
-  }, [report.latitude, report.longitude]);
-
-  return (
-    <section className="mt-3 rounded-2xl border-2 border-goldyellow/40 bg-goldyellow/5 p-4">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-extrabold text-slate-700">
-          Petugas TERDEKAT yang SIAP Bantu
-        </h3>
-        <span className="rounded-full bg-goldyellow/25 px-2.5 py-1 text-[11px] font-bold text-yellow-700">
-          {staff.length} petugas siap
-        </span>
-      </header>
-      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-        Status siap ({Math.round(READY_TTL_MS / 3600000)} jam sejak pegawai
-        menekan tombol) dan diurutkan dari jarak terdekat ke TKP. Hubungi
-        petugas langsung di luar aplikasi ini.
-      </p>
-
-      {staff.length === 0 ? (
-        <p className="mt-3 rounded-xl bg-white px-3 py-2.5 text-xs text-slate-500">
-          Belum ada pegawai SAR yang menandai dirinya siap. Pegawai dapat
-          menekan "Saya Siap Membantu" di aplikasi pelapor.
-        </p>
-      ) : (
-        <ol className="mt-3 grid gap-1.5">
-          {staff.map((person, index) => (
-            <li
-              key={person.username}
-              className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-            >
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white">
-                {index + 1}
-              </span>
-              <span className="font-bold text-slate-800">{person.name}</span>
-              <span className="ml-auto font-bold text-primary">
-                {formatDistanceKm(person.distanceKm)}
-              </span>
-              <span className="flex w-full items-center gap-1 text-[11px] text-slate-400 sm:w-auto">
-                <CheckCircle2 className="h-3 w-3 text-forestgreen" />
-                siap sejak {formatTime(person.checkedInAt)}
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
-  );
-}
-
 /** Chip tahap tanggapan satu instansi: Belum direspons s.d. Selesai. */
 function StageChip({ response }) {
   let stage = "Belum direspons";
@@ -1693,7 +1733,7 @@ function StageChip({ response }) {
   if (response.finishedAt) {
     stage = "Selesai";
     cls = "bg-forestgreen/10 text-forestgreen";
-  } else if (response.dispatchedAt) {
+  } else if (response.operasi?.length > 0) {
     stage = "Diterjunkan";
     cls = "bg-primary/10 text-primary";
   } else if (response.receivedAt || response.received) {
@@ -1734,25 +1774,40 @@ function OtherResponsePanel({ report, otherAgency }) {
             {formatDateTime(own.receivedAt)}
             {own.receivedBy ? ` — ${own.receivedBy}` : ""}
           </p>
-          <p>
-            <span className="font-bold text-slate-700">Anggota:</span>{" "}
-            {own.personnel ? `${own.personnel} orang` : "-"}
-          </p>
-          <div>
-            <span className="font-bold text-slate-700">Peralatan:</span>
-            <div className="mt-1">
-              <EquipmentSummary equipment={own.equipment} />
-            </div>
-          </div>
-          {own.note && (
-            <p className="rounded-lg bg-white px-2.5 py-1.5 text-[11px] italic text-slate-500">
-              “{own.note}”
-            </p>
+          {own.operasi.length > 0 && (
+            <>
+              <p>
+                <span className="font-bold text-slate-700">Total anggota:</span>{" "}
+                {totalPersonnelAll(own.operasi)} orang
+              </p>
+              <p>
+                <span className="font-bold text-slate-700">Total alat:</span>{" "}
+                {totalEquipmentUnitsAll(own.operasi)} unit
+              </p>
+              <p>
+                <span className="font-bold text-slate-700">Hari operasi:</span>{" "}
+                {own.operasi.length} hari
+              </p>
+              <div>
+                <span className="font-bold text-slate-700">Rincian per hari:</span>
+                <div className="mt-1 space-y-1">
+                  {own.operasi.map((o) => (
+                    <div key={o.hari} className="flex justify-between text-[11px]">
+                      <span className="text-slate-600">
+                        Hari {o.hari} ({o.tanggal})
+                      </span>
+                      <span className="font-bold text-slate-800">
+                        {o.personnel} anggota · {totalEquipmentUnits(o.equipment)} unit
+                      </span>
+                      {o.kesimpulan && (
+                        <span className="text-slate-500 italic">— “{o.kesimpulan}”</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
-          <p>
-            <span className="font-bold text-slate-700">Diterjunkan:</span>{" "}
-            {own.dispatchedAt ? formatDateTime(own.dispatchedAt) : "-"}
-          </p>
           {own.finishedAt && (
             <p className="font-bold text-forestgreen">
               Tugas selesai {formatDateTime(own.finishedAt)}
@@ -1764,27 +1819,6 @@ function OtherResponsePanel({ report, otherAgency }) {
   );
 }
 
-/** Daftar alat ringkas (.nama × jumlah) — dipakai panel read-only. */
-function EquipmentSummary({ equipment }) {
-  if (!equipment || equipment.length === 0) {
-    return (
-      <span className="text-xs text-slate-400">Tidak mencantumkan alat.</span>
-    );
-  }
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {equipment.map((item) => (
-        <span
-          key={item.name}
-          className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700"
-        >
-          {item.name} ×{item.qty ?? 1}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 /** Riwayat aksi tanggapan instansi sendiri pada modal. */
 function ResponseTimeline({ response }) {
   const events = [
@@ -1793,12 +1827,10 @@ function ResponseTimeline({ response }) {
       detail: response.receivedBy ? `oleh ${response.receivedBy}` : "",
       time: response.receivedAt,
     },
-    response.dispatchedAt && {
-      label: "Tim & peralatan diterjunkan",
-      detail: `${response.personnel || 0} anggota · ${totalEquipmentUnits(
-        response.equipment,
-      )} unit alat`,
-      time: response.dispatchedAt,
+    response.operasi.length > 0 && {
+      label: "Entri operasi harian",
+      detail: `${totalPersonnelAll(response.operasi)} anggota · ${totalEquipmentUnitsAll(response.operasi)} unit alat · ${response.operasi.length} hari`,
+      time: response.operasi[response.operasi.length - 1]?.createdAt,
     },
     response.finishedAt && {
       label: "Tugas instansi ini selesai",

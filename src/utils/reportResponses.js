@@ -1,14 +1,20 @@
 // ============================================================
-// TANGGAPAN INSTANSI (CHECKLIST DITERIMA + TIM & PERALATAN)
+// TANGGAPAN INSTANSI (CHECKLIST DITERIMA + OPERASI PER HARI)
 // Struktur per laporan (disimpan dalam satu record laporan yang sama,
 // sehingga tanggapan BASARNAS terlihat oleh Manggala Agni dan sebaliknya):
 //   report.responses.basarnas / report.responses.manggala_agni = {
 //     received: bool, receivedAt, receivedBy,   // checklist sudah diterima
-//     personnel: number,            // jumlah anggota yang diterjunkan
-//     equipment: [{name, qty}],     // alat yang dibawa beserta jumlahnya
-//     note: string,                 // catatan tim / keterangan
-//     dispatchedAt,                 // waktu pertama kali tim diterjunkan
-//     finishedAt,                   // waktu tugas instansi ini selesai
+//     operasi: [                                // catatan harian (maks 7 hari)
+//       {
+//         hari: number,           // 1-7
+//         tanggal: string,        // "YYYY-MM-DD"
+//         personnel: number,      // jumlah anggota yang diterjunkan hari itu
+//         equipment: [{name, qty}], // alat yang dibawa beserta jumlahnya
+//         kesimpulan: string,     // kesimpulan operasi hari itu
+//         createdAt: string,      // timestamp entri dibuat
+//       }
+//     ],
+//     finishedAt,                 // waktu operasi instansi ini selesai
 //   }
 // Status laporan (baru -> diterima -> diterjunkan -> selesai) otomatis
 // dihitung dari objek tanggapan — tidak lagi dipilih manual di dropdown.
@@ -24,15 +30,14 @@ export const RESPONSE_AGENCIES = {
   manggala_agni: "MANGGALA AGNI",
 };
 
+export const OPERASI_MAX_HARI = 7;
+
 export function emptyResponse() {
   return {
     received: false,
     receivedAt: null,
     receivedBy: "",
-    personnel: 0,
-    equipment: [],
-    note: "",
-    dispatchedAt: null,
+    operasi: [],
     finishedAt: null,
   };
 }
@@ -42,8 +47,7 @@ export function responseFor(report, agency) {
   return { ...emptyResponse(), ...(report?.responses?.[agency] ?? {}) };
 }
 
-/**
- * Instansi yang ditugaskan menangani laporan sesuai aturan distribusi:
+/** Instansi yang ditugaskan menangani laporan sesuai aturan distribusi:
  * kebakaran -> BASARNAS + Manggala Agni, selain itu hanya BASARNAS.
  */
 export function involvedAgencies(report) {
@@ -63,6 +67,27 @@ export function totalEquipmentUnits(equipment) {
   );
 }
 
+/** Total unit peralatan dari semua entri operasi. */
+export function totalEquipmentUnitsAll(operasi) {
+  return (operasi ?? []).reduce(
+    (sum, entri) =>
+      sum +
+      (entri.equipment ?? []).reduce(
+        (sub, item) => sub + (Number(item?.qty) || 0),
+        0,
+      ),
+    0,
+  );
+}
+
+/** Total anggota dari semua entri operasi. */
+export function totalPersonnelAll(operasi) {
+  return (operasi ?? []).reduce(
+    (sum, entri) => sum + (Number(entri?.personnel) || 0),
+    0,
+  );
+}
+
 /** Status laporan otomatis dari tanggapan tiap instansi. */
 export function deriveStatus(report) {
   if (!report) return "baru";
@@ -70,7 +95,7 @@ export function deriveStatus(report) {
     responseFor(report, agency),
   );
   if (responses.every((item) => item.finishedAt)) return "selesai";
-  if (responses.some((item) => item.dispatchedAt)) return "diterjunkan";
+  if (responses.some((item) => item.operasi?.length > 0)) return "diterjunkan";
   if (responses.some((item) => item.receivedAt || item.received)) {
     return "diterima";
   }
