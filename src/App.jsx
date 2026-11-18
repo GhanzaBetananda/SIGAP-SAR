@@ -5,6 +5,7 @@ import Home from "./pages/Home.jsx";
 import PanicReport from "./pages/PanicReport.jsx";
 import Login from "./pages/Login.jsx";
 import AdminHistory from "./pages/AdminHistory.jsx";
+import AdminDetailPage from "./pages/AdminDetailPage.jsx";
 import { isAdminDomain, isManggalaDomain } from "./utils/domains.js";
 
 /**
@@ -35,6 +36,7 @@ function AdminRoutes({ agency }) {
   return (
     <Routes>
       <Route path="/admin" element={<AdminHistory agency={agency} />} />
+      <Route path="/admin/detail/:ticketId" element={<AdminDetailPage agency={agency} />} />
       <Route path="/admin/*" element={<AdminHistory agency={agency} />} />
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>

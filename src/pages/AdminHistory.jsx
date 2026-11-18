@@ -1086,6 +1086,14 @@ function AdminReportCard({ report, agency, onReceive, onOpen }) {
         >
           <ListChecks className="h-4 w-4" /> Tanggapan
         </button>
+        <a
+          href={`/admin/detail/${report.ticketId ?? ticketKey(report)}`}
+          target="_blank"
+          rel="noreferrer"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          <ExternalLink className="h-4 w-4" /> Detail Operasi
+        </a>
       </div>
 
       <div className="mt-2 flex gap-2">
