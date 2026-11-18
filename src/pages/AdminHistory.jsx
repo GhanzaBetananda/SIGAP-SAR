@@ -872,28 +872,38 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                           className="px-4 py-3"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex items-center gap-2">
-                            {report.photoUrl && (
+                          <div className="flex flex-col items-start gap-1.5">
+                            <div className="flex items-center gap-2">
+                              {report.photoUrl && (
+                                <a
+                                  href={report.photoUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="block shrink-0"
+                                >
+                                  <img
+                                    src={report.photoUrl}
+                                    alt="Foto TKP"
+                                    className="h-9 w-9 rounded-lg object-cover ring-1 ring-slate-200"
+                                  />
+                                </a>
+                              )}
                               <a
-                                href={report.photoUrl}
+                                href={`https://www.google.com/maps?q=${report.latitude},${report.longitude}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="block shrink-0"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-primary-dark"
                               >
-                                <img
-                                  src={report.photoUrl}
-                                  alt="Foto TKP"
-                                  className="h-9 w-9 rounded-lg object-cover ring-1 ring-slate-200"
-                                />
+                                <MapPin className="h-3.5 w-3.5" /> Maps
                               </a>
-                            )}
+                            </div>
                             <a
-                              href={`https://www.google.com/maps?q=${report.latitude},${report.longitude}`}
+                              href={`/admin/detail/${report.ticketId ?? key}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-primary-dark"
+                              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
                             >
-                              <MapPin className="h-3.5 w-3.5" /> Maps
+                              <ExternalLink className="h-3.5 w-3.5" /> Detail Operasi
                             </a>
                           </div>
                         </td>
