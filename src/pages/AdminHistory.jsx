@@ -1086,14 +1086,6 @@ function AdminReportCard({ report, agency, onReceive, onOpen }) {
         >
           <ListChecks className="h-4 w-4" /> Tanggapan
         </button>
-        <a
-          href={`/admin/detail/${report.ticketId ?? report.submittedAt}`}
-          target="_blank"
-          rel="noreferrer"
-          className="flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
-        >
-          <ExternalLink className="h-4 w-4" /> Detail Operasi
-        </a>
       </div>
 
       <div className="mt-2 flex gap-2">
@@ -1104,29 +1096,27 @@ function AdminReportCard({ report, agency, onReceive, onOpen }) {
             rel="noreferrer"
             className="flex h-11 items-center gap-2 rounded-xl border-2 border-slate-200 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
           >
-            {/* Kode baru: tombol memakai ikon kamera (bukan thumbnail) */}
             <Camera className="h-4 w-4 text-primary" />
             Foto TKP
-            {/* Versi lama — thumbnail foto sebagai ikon tombol:
-            <img
-              src={report.photoUrl}
-              alt="Foto TKP"
-              className="h-7 w-7 rounded-md object-cover"
-            />
-            Foto TKP
-            */}
           </a>
         )}
         <a
           href={mapsUrl}
           target="_blank"
           rel="noreferrer"
-          className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-bold text-white
+          className={`flex-1 h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold text-white
             ${fire ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary-dark"}`}
         >
           <MapPin className="h-4 w-4" /> Lihat TKP di Maps
-          {/* Versi lama: <MapPin className="h-4 w-4" /> Lihat TKP di Google Maps */}
           <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+        </a>
+        <a
+          href={`/admin/detail/${report.ticketId ?? report.submittedAt}`}
+          target="_blank"
+          rel="noreferrer"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          <ExternalLink className="h-4 w-4" /> Detail Operasi
         </a>
       </div>
     </div>
