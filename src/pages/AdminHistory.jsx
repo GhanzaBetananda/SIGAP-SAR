@@ -1371,14 +1371,14 @@ function OwnResponsePanel({
     }));
   }
 
-  function removeOperasiEntry(index: number) {
+  function removeOperasiEntry(index) {
     setDraft((prev) => ({
       ...prev,
       operasi: prev.operasi.filter((_, i) => i !== index),
     }));
   }
 
-  function setPersonnel(index: number, value: number) {
+  function setPersonnel(index, value) {
     setDraft((prev) => {
       const next = [...prev.operasi];
       next[index] = { ...next[index], personnel: value };
@@ -1386,7 +1386,7 @@ function OwnResponsePanel({
     });
   }
 
-  function setKesimpulan(index: number, value: string) {
+  function setKesimpulan(index, value) {
     setDraft((prev) => {
       const next = [...prev.operasi];
       next[index] = { ...next[index], kesimpulan: value };
@@ -1394,7 +1394,7 @@ function OwnResponsePanel({
     });
   }
 
-  function togglePreset(entryIndex: number, name: string) {
+  function togglePreset(entryIndex, name) {
     setDraft((prev) => {
       const next = [...prev.operasi];
       const entry = next[entryIndex];
@@ -1409,7 +1409,7 @@ function OwnResponsePanel({
     });
   }
 
-  function setQty(entryIndex: number, name: string, qty: number) {
+  function setQty(entryIndex, name, qty) {
     setDraft((prev) => {
       const next = [...prev.operasi];
       const entry = next[entryIndex];
@@ -1425,7 +1425,7 @@ function OwnResponsePanel({
     });
   }
 
-  function addCustom(entryIndex: number) {
+  function addCustom(entryIndex) {
     const name = customName.trim();
     if (!name) return;
     setDraft((prev) => {
@@ -1441,7 +1441,7 @@ function OwnResponsePanel({
     setCustomName("");
   }
 
-  function removeEquipment(entryIndex: number, name: string) {
+  function removeEquipment(entryIndex, name) {
     setDraft((prev) => {
       const next = [...prev.operasi];
       const entry = next[entryIndex];
