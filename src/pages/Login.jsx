@@ -7,10 +7,9 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Lock, LogIn, UserRound } from "lucide-react";
+import { Lock, LogIn, UserRound } from "lucide-react";
 import { useAuth } from "../context/AuthProvider.jsx";
 import { useReport } from "../context/useReport.js";
-import { ACCOUNTS } from "../data/accounts.js";
 import { accountIdentityPatch } from "../context/reportState.js";
 
 const LOGOS = [
@@ -25,7 +24,6 @@ export default function Login() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showDemo, setShowDemo] = useState(false);
   const [error, setError] = useState("");
 
   function handleSubmit(event) {
@@ -39,12 +37,6 @@ export default function Login() {
     updateReport(accountIdentityPatch(session));
     navigate("/", { replace: true });
   }
-
-  const categoryName = {
-    pegawai_basarnas: "Pegawai BASARNAS",
-    potensi_sar: "Potensi SAR",
-    kampung_rescue: "Kampung Rescue",
-  };
 
   return (
     <div className="flex min-h-dvh flex-col bg-lightbg">
@@ -124,35 +116,6 @@ export default function Login() {
               Masuk
             </button>
           </form>
-
-          {/* Daftar akun demo — hanya untuk simulasi frontend */}
-          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50">
-            <button
-              type="button"
-              onClick={() => setShowDemo((prev) => !prev)}
-              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-xs font-semibold text-slate-600"
-            >
-              Akun demo (simulasi)
-              <ChevronDown
-                className={`h-4 w-4 text-slate-400 transition-transform ${showDemo ? "rotate-180" : ""}`}
-              />
-            </button>
-            {showDemo && (
-              <ul className="space-y-1.5 px-4 pb-3 text-xs text-slate-600">
-                {ACCOUNTS.map((account) => (
-                  <li
-                    key={account.username}
-                    className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-1.5"
-                  >
-                    <span className="font-bold text-slate-800">{account.username}</span>
-                    <span className="text-slate-500">
-                      {categoryName[account.reporterCategory]} — <code>{account.password}</code>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </div>
       </div>
 
