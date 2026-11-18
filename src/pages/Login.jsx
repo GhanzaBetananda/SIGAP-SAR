@@ -59,7 +59,7 @@ export default function Login() {
           <h1 className="mt-4 text-center text-lg font-extrabold tracking-wide text-primary">
             SAT SET
           </h1>
-          <p className="mt-1 text-center text-xs leading-snug text-slate-500">
+          <p className="hidden sm:block mt-1 text-center text-xs leading-snug text-slate-500">
             Sistem Aplikasi Tanggap &amp; Siaga Evakuasi Terpadu  BASARNAS Banyuwangi
           </p>
 

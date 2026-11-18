@@ -68,9 +68,11 @@ export default function Layout({ children }) {
           {/* Badge status instansi — mengikuti laporan aktif (24 jam) */}
           <span
             className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold tracking-widest sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[10px]
-              ${statusAlert === "SIAGA"
-                ? "border-fireorange/30 bg-fireorange/10 text-fireorange-dark"
-                : "border-primary/15 bg-primary/5 text-primary"}`}
+              ${
+                statusAlert === "SIAGA"
+                  ? "border-fireorange/30 bg-fireorange/10 text-fireorange-dark"
+                  : "border-primary/15 bg-primary/5 text-primary"
+              }`}
           >
             <span className="relative flex h-2 w-2">
               {statusAlert === "SIAGA" && (
@@ -100,7 +102,9 @@ export default function Layout({ children }) {
         <div className="h-1 bg-gradient-to-r from-primary via-fireorange to-goldyellow" />
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-6 pt-4">{children}</main>
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-6 pt-4">
+        {children}
+      </main>
 
       <footer className="border-t border-slate-200/70 bg-white">
         <div className="safe-area-bottom mx-auto max-w-3xl px-4 py-5 text-center text-xs text-slate-500">
@@ -115,15 +119,6 @@ export default function Layout({ children }) {
             ))}
           </div>
           <p>copyright Basarnas 2026. All rights reserved.</p>
-          <p className="mt-1 text-[11px] text-slate-400">
-            <a
-              href={adminUrl()}
-              className="underline-offset-2 hover:text-primary hover:underline"
-            >
-              Panel Admin
-            </a>{" "}
-            — diperuntukkan bagi petugas (domain admin terpisah)
-          </p>
         </div>
       </footer>
     </div>

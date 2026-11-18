@@ -56,10 +56,7 @@ export default function DistanceInfo({ report, distances }) {
         */}
       </div>
 
-      <p className="mt-3 text-xs text-slate-400">
-        Koordinat kantor saat ini menggunakan data dummy dan dapat diubah di{" "}
-        <code className="rounded bg-slate-100 px-1 py-0.5">src/config/officeLocation.js</code>.
-      </p>
+     
     </section>
   );
 }
