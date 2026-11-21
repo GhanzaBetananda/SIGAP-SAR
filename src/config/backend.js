@@ -8,4 +8,4 @@
 // ============================================================
 
 export const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbzNKtdsQerb8o1DvS0yYXAuAnSp5Ejg5E63Y7Q7MePxeWb2wG2oi8lu0ZKwIKqL6InC/exec";
+  "https://script.google.com/macros/s/AKfycbywE4Q7bFFpLafb7dIh7_AyMTdLBCmemWCrovamgepgWTKnQrF87ga8qrU_aJ9EjC0T/exec";

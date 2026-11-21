@@ -456,6 +456,10 @@ function upsertLaporan_(lap) {
       "voice-" + (lap.ticketId || "laporan") + ".webm"
     );
   }
+  // Proses foto operasi harian di dalam responses -> simpan ke Drive
+  if (lap.responses) {
+    lap.responses = processFotosInResponses_(lap.responses);
+  }
 
   var targetName = tabForClassification_(lap.classification);
   var existing = findLaporanRow_(lap.ticketId || "");
@@ -522,6 +526,7 @@ function updateLaporan_(ticketId, patch) {
     if (column && idx[column]) {
       var value = patch[key];
       if (key === "responses") {
+        value = processFotosInResponses_(value);
         value = value == null ? "" : JSON.stringify(value === "" ? {} : value);
       }
       found.sheet.getRange(found.rowIndex, idx[column]).setValue(value);
@@ -626,4 +631,33 @@ function saveAttachment_(dataUrl, filename) {
     filename
   );
   return attachmentFolder_().createFile(blob).getUrl();
+}
+
+/**
+ * Rekursif telusuri objek responses, temukan setiap field "fotos"
+ * (array data URL), konversi masing-masing ke file Google Drive,
+ * lalu ganti dengan link Drive agar tidak membengkaki sel Sheet.
+ */
+function processFotosInResponses_(obj) {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(function (item) { return processFotosInResponses_(item); });
+  }
+  var result = {};
+  Object.keys(obj).forEach(function (key) {
+    var val = obj[key];
+    if (key === "fotos" && Array.isArray(val)) {
+      result[key] = val.map(function (foto) {
+        if (typeof foto === "string" && String(foto).indexOf("data:") === 0) {
+          return saveAttachment_(foto, "foto-operasi-" + Date.now() + ".jpg");
+        }
+        return foto;
+      });
+    } else if (typeof val === "object") {
+      result[key] = processFotosInResponses_(val);
+    } else {
+      result[key] = val;
+    }
+  });
+  return result;
 }
