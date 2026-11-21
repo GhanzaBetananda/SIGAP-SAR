@@ -882,13 +882,10 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
                                   href={report.photoUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="block shrink-0"
+                                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-primary ring-1 ring-slate-200 hover:bg-primary hover:text-white transition-colors"
+                                  title="Buka Foto TKP"
                                 >
-                                  <img
-                                    src={report.photoUrl}
-                                    alt="Foto TKP"
-                                    className="h-9 w-9 rounded-lg object-cover ring-1 ring-slate-200"
-                                  />
+                                  <Camera className="h-4 w-4" />
                                 </a>
                               )}
                               <a
