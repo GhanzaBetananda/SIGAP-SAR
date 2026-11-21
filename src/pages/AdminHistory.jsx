@@ -551,7 +551,7 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
       {/* Header admin */}
       <header className="safe-area-top sticky top-0 z-30 border-b border-slate-200/70 bg-white/95 shadow-sm shadow-slate-900/5 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-3 py-3.5 sm:gap-3 sm:px-4">
-          <span className="flex shrink-0 items-center gap-1 sm:gap-1.5 hidden sm:flex">
+          <span className="flex shrink-0 items-center gap-1 sm:gap-1.5">
             {logoSet(agency).map((logo) => (
               <img
                 key={logo.src}

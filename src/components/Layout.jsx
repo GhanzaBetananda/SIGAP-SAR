@@ -44,8 +44,8 @@ export default function Layout({ children }) {
             </button>
           )}
 
-          {/* Baris logo instansi (urutan: 456, 472, BASARNAS) — disembunyikan di mobile agar hanya tersisa tulisan SAT SET */}
-          <span className="flex h-11 shrink-0 items-center gap-1 sm:gap-1.5 hidden sm:flex">
+          {/* Baris logo instansi (urutan: 456, 472, BASARNAS) — lebih kecil di layar sempit */}
+          <span className="flex h-11 shrink-0 items-center gap-1 sm:gap-1.5">
             {LOGOS.map((logo) => (
               <img
                 key={logo.src}
