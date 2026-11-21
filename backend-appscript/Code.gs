@@ -387,6 +387,8 @@ function rowToLaporan_(row, headers) {
   } else if (lap.reporterCategory === "potensi_sar") {
     lap.potentialSarName = nama;
     lap.district = sel["wilayah"] == null ? "" : sel["wilayah"];
+  } else if (lap.reporterCategory === "kampung_rescue") {
+    lap.kampungRescueName = nama;
   } else {
     lap.employeeName = nama;
   }
