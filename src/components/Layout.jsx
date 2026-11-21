@@ -20,7 +20,7 @@ export default function Layout({ children }) {
   const { session, logout } = useAuth();
   const { resetReport } = useReport();
   // Status instansi: SIAGA bila ada laporan aktif (belum selesai) dalam 24 jam
-  const statusAlert = countActiveIncidents(24) > 0 ? "SIAGA" : "DAMAI";
+  const statusAlert = countActiveIncidents(24) > 0 ? "SIAGA" : "NON SIAGA";
 
   function handleLogout() {
     logout();
@@ -44,8 +44,8 @@ export default function Layout({ children }) {
             </button>
           )}
 
-          {/* Baris logo instansi (urutan: 456, 472, BASARNAS) — lebih kecil di layar sempit */}
-          <span className="flex h-11 shrink-0 items-center gap-1 sm:gap-1.5">
+          {/* Baris logo instansi (urutan: 456, 472, BASARNAS) — disembunyikan di mobile agar hanya tersisa tulisan SAT SET */}
+          <span className="flex h-11 shrink-0 items-center gap-1 sm:gap-1.5 hidden sm:flex">
             {LOGOS.map((logo) => (
               <img
                 key={logo.src}
@@ -60,14 +60,14 @@ export default function Layout({ children }) {
             <p className="text-sm font-extrabold tracking-wide text-primary sm:text-base">
               SAT SET
             </p>
-            <p className="text-[10px] leading-snug text-slate-500 sm:text-[11px]">
+            <p className="hidden sm:block text-[10px] leading-snug text-slate-500 sm:text-[11px]">
               Sistem Aplikasi Tanggap &amp; Siaga Evakuasi Terpadu
             </p>
           </div>
 
-          {/* Badge status instansi — mengikuti laporan aktif (24 jam) */}
+          {/* Badge status instansi — mengikuti laporan aktif (24 jam). Disembunyikan di mobile agar hanya tersisa tulisan SAT SET. */}
           <span
-            className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold tracking-widest sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[10px]
+            className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold tracking-widest sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[10px] hidden sm:inline-flex
               ${
                 statusAlert === "SIAGA"
                   ? "border-fireorange/30 bg-fireorange/10 text-fireorange-dark"

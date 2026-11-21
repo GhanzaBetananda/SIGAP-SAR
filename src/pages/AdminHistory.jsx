@@ -29,7 +29,6 @@ import {
   ShieldCheck,
   Siren,
   TriangleAlert,
-  Users,
   X,
 } from "lucide-react";
 import {
@@ -66,6 +65,7 @@ import {
   totalPersonnelAll,
 } from "../utils/reportResponses.js";
 import { EQUIPMENT_PRESETS } from "../data/responsePresets.js";
+import OperasiPhotoPicker from "../components/OperasiPhotoPicker.jsx";
 import {
   loadReportsData,
   patchReportOnServer,
@@ -509,6 +509,9 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
     selesai: scopedReports.filter(
       (r) => statusGroup(r.status ?? "baru") === "selesai",
     ).length,
+    belumDiterima: scopedReports.filter(
+      (r) => !responseFor(r, agency).received,
+    ).length,
   };
 
   // Kode baru (presens): panel BASARNAS memakai filter status,
@@ -548,7 +551,7 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
       {/* Header admin */}
       <header className="safe-area-top sticky top-0 z-30 border-b border-slate-200/70 bg-white/95 shadow-sm shadow-slate-900/5 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-3 py-3.5 sm:gap-3 sm:px-4">
-          <span className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+          <span className="flex shrink-0 items-center gap-1 sm:gap-1.5 hidden sm:flex">
             {logoSet(agency).map((logo) => (
               <img
                 key={logo.src}
@@ -562,11 +565,11 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
           <div className="min-w-0 flex-1 leading-tight">
             <p className="flex flex-wrap items-center gap-x-2 text-sm font-extrabold tracking-wide text-primary sm:text-base">
               {agencyTitle}
-              <span className="rounded-full bg-fireorange/10 px-2 py-0.5 text-[9px] font-bold tracking-widest text-fireorange sm:text-[10px]">
+              <span className="rounded-full bg-fireorange/10 px-2 py-0.5 text-[9px] font-bold tracking-widest text-fireorange sm:text-[10px] hidden sm:inline">
                 {agencyBadge}
               </span>
             </p>
-            <p className="text-[10px] leading-snug text-slate-500 sm:text-[11px]">
+            <p className="hidden sm:block text-[10px] leading-snug text-slate-500 sm:text-[11px]">
               {agencyHint}
             </p>
           </div>
@@ -678,10 +681,10 @@ function AdminDashboard({ agency = "basarnas", onLogout }) {
             />
           )}
           <StatCard
-            icon={<Users className="h-5 w-5" />}
-            label="Total Korban"
-            value={stats.victims}
-            tint="bg-slate-800"
+            icon={<Inbox className="h-5 w-5" />}
+            label="Belum Diterima"
+            value={stats.belumDiterima}
+            tint="bg-fireorange"
           />
         </section>
 
@@ -1117,7 +1120,7 @@ function AdminReportCard({ report, agency, onReceive, onOpen }) {
           className={`flex-1 h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold text-white
             ${fire ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary-dark"}`}
         >
-          <MapPin className="h-4 w-4" /> Lihat TKP di Maps
+          <MapPin className="h-4 w-4" /> Maps
           <ExternalLink className="h-3.5 w-3.5 opacity-70" />
         </a>
         <a
@@ -1305,7 +1308,7 @@ function ReportResponseModal({
               rel="noreferrer"
               className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white hover:bg-primary-dark"
             >
-              <MapPin className="h-4 w-4" /> Lihat TKP di Maps
+              <MapPin className="h-4 w-4" /> Maps
               {/* Versi lama: <MapPin className="h-4 w-4" /> Lihat TKP di Google Maps */}
               <ExternalLink className="h-3.5 w-3.5 opacity-70" />
             </a>
@@ -1345,7 +1348,7 @@ function OwnResponsePanel({
   const presets = EQUIPMENT_PRESETS[agency] ?? [];
   const today = new Date().toISOString().slice(0, 10);
   const [draft, setDraft] = useState(() => ({
-    operasi: (own.operasi ?? []).map((item) => ({ ...item })),
+    operasi: (own.operasi ?? []).map((item) => ({ ...item, fotos: item.fotos ?? [] })),
   }));
   const [customName, setCustomName] = useState("");
   const [error, setError] = useState("");
@@ -1372,6 +1375,7 @@ function OwnResponsePanel({
           tanggal: today,
           personnel: 0,
           equipment: [],
+          fotos: [],
           kesimpulan: "",
           createdAt: new Date().toISOString(),
         },
@@ -1398,6 +1402,14 @@ function OwnResponsePanel({
     setDraft((prev) => {
       const next = [...prev.operasi];
       next[index] = { ...next[index], kesimpulan: value };
+      return { ...prev, operasi: next };
+    });
+  }
+
+  function setFotos(index, fotos) {
+    setDraft((prev) => {
+      const next = [...prev.operasi];
+      next[index] = { ...next[index], fotos };
       return { ...prev, operasi: next };
     });
   }
@@ -1654,6 +1666,12 @@ function OwnResponsePanel({
                     </button>
                   </div>
                 </div>
+
+                {/* Foto operasi (maksimal 4) — di atas kesimpulan operasi */}
+                <OperasiPhotoPicker
+                  photos={entry.fotos ?? []}
+                  onChange={(fotos) => setFotos(index, fotos)}
+                />
 
                 {/* Kesimpulan */}
                 <div className="mb-2">

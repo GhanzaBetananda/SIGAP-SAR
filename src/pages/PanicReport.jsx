@@ -150,7 +150,7 @@ export default function PanicReport() {
             Identitas Pelapor
           </h2>
           <p className="mb-3 text-sm text-slate-500">
-            Diambil dari akun login — tidak perlu diisi ulang.
+            Diambil dari data akun.
           </p>
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
             <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2.5">
