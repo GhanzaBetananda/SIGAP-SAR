@@ -6,40 +6,43 @@
 // ============================================================
 
 export const ACCOUNTS = [
+  // ============================================================
+  // AKUN PELAKOR — PEGAWAI BANASARNAS (1–5)
+  // ============================================================
   {
-    username: "BAS001",
+    username: "SAR001",
     password: "basarnas123",
     name: "Andi Saputra",
-    reporterCategory: "kampung_rescue",
-    region: "",
+    reporterCategory: "pegawai_basarnas",
+    region: "Banyuwangi",
   },
   {
-    username: "POTMUNCAR",
-    password: "muncar123",
-    name: "Yusuf Aditia",
-    reporterCategory: "kampung_rescue",
-    region: "Muncar",
+    username: "SAR002",
+    password: "basarnas123",
+    name: "Budi Santoso",
+    reporterCategory: "pegawai_basarnas",
+    region: "Banyuwangi",
   },
   {
-    username: "POTSONGGON",
-    password: "songgon123",
-    name: "Wahyu Setiawan",
-    reporterCategory: "kampung_rescue",
-    region: "Songgon",
+    username: "SAR003",
+    password: "basarnas123",
+    name: "Citra Dewi",
+    reporterCategory: "pegawai_basarnas",
+    region: "Banyuwangi",
   },
   {
-    username: "KRMANDAR",
-    password: "mandar123",
-    name: "Abdul Rahman",
-    reporterCategory: "kampung_rescue",
-    region: "Desa Kampung Mandar",
+    username: "SAR004",
+    password: "basarnas123",
+    name: "Dedi Setiawan",
+    reporterCategory: "pegawai_basarnas",
+    region: "Banyuwangi",
   },
   {
-    username: "KRSONGGON",
-    password: "songgon123",
-    name: "I Made Wiarta",
-    reporterCategory: "kampung_rescue",
-    region: "Desa Songgon",
+    username: "SAR005",
+    password: "basarnas123",
+    name: "Eka Putri",
+    reporterCategory: "pegawai_basarnas",
+    region: "Banyuwangi",
   },
   // ============================================================
   // AKUN POTENSI SAR — MUNCAR (1–10)
